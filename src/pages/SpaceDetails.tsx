@@ -212,6 +212,7 @@ const SpaceDetails = () => {
                     type="file"
                     multiple
                     accept="image/*"
+                    capture="environment" // Added capture attribute here
                     onChange={handlePhotoUpload}
                     className="col-span-3"
                   />
