@@ -8,7 +8,7 @@ export default defineConfig(() => ({
     host: "::",
     port: 8080,
   },
-  base: "/[YOUR_REPOSITORY_NAME]/", // IMPORTANT: Replace [YOUR_REPOSITORY_NAME] with your actual GitHub repository name
+  base: "/BuildSurvey/", // Assurez-vous que c'est le nom de votre dépôt GitHub
   plugins: [dyadComponentTagger(), react()],
   resolve: {
     alias: {
