@@ -1,0 +1,146 @@
+import json
+import os
+import base64
+import re
+
+def generate_typst_report(json_file_path, output_dir="typst_report"):
+    """
+    Génère un rapport Typst à partir d'un fichier JSON de projet.
+    Extrait les images base64 et les enregistre dans le répertoire de sortie.
+    """
+    try:
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            project_data = json.load(f)
+    except FileNotFoundError:
+        print(f"Erreur : Fichier JSON introuvable à {json_file_path}")
+        return
+    except json.JSONDecodeError:
+        print(f"Erreur : Impossible de décoder le JSON depuis {json_file_path}")
+        return
+
+    # Créer le répertoire de sortie s'il n'existe pas
+    os.makedirs(output_dir, exist_ok=True)
+    images_dir = os.path.join(output_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+
+    typst_content = []
+
+    # Détails du projet
+    typst_content.append(f"= Rapport d'Inspection : {project_data['location']}\n")
+    typst_content.append(f"Caractéristiques du bâtiment : {project_data['buildingCharacteristics'] or 'Non spécifié.'}\n")
+    typst_content.append("\n#h(1em)\n") # Petit espace vertical
+
+    # Niveaux
+    if not project_data['levels']:
+        typst_content.append("Aucun niveau enregistré pour ce projet.\n")
+    else:
+        for level in project_data['levels']:
+            typst_content.append(f"== Niveau : {level['name']}\n")
+            typst_content.append("\n#h(1em)\n")
+
+            # Espaces
+            if not level['spaces']:
+                typst_content.append("Aucun espace enregistré pour ce niveau.\n")
+            else:
+                for space in level['spaces']:
+                    typst_content.append(f"=== Espace : {space['name']}\n")
+                    typst_content.append("\n#h(1em)\n")
+
+                    # Observations
+                    has_observations = False
+                    for location_key in ["floor", "wall", "ceiling"]:
+                        location_name = {
+                            "floor": "Sol",
+                            "wall": "Mur",
+                            "ceiling": "Plafond"
+                        }[location_key]
+                        observations = space['observations'][location_key]
+
+                        if observations:
+                            has_observations = True
+                            typst_content.append(f"==== Observations du {location_name}\n")
+                            typst_content.append("#list[\n")
+                            for obs in observations:
+                                typst_content.append(f"  * {obs['text']}\n")
+                                if obs['photos']:
+                                    typst_content.append("    #h(0.5em)\n")
+                                    for i, photo_base64 in enumerate(obs['photos']):
+                                        # Extraire les données de l'image et les enregistrer
+                                        try:
+                                            # Format de l'URL de données : data:image/png;base64,iVBORw0...
+                                            match = re.match(r"data:image/(\w+);base64,(.*)", photo_base64)
+                                            if match:
+                                                ext = match.group(1)
+                                                encoded = match.group(2)
+                                                if ext == 'jpeg': ext = 'jpg' # Conversion courante
+                                                
+                                                image_data = base64.b64decode(encoded)
+                                                
+                                                image_filename = f"obs_{obs['id']}_{i}.{ext}"
+                                                image_path = os.path.join(images_dir, image_filename)
+                                                
+                                                with open(image_path, 'wb') as img_file:
+                                                    img_file.write(image_data)
+                                                
+                                                # Référencer l'image dans Typst, relative au fichier Typst de sortie
+                                                typst_content.append(f"    #image(\"images/{image_filename}\", width: 50%)\n")
+                                                typst_content.append("    #h(0.5em)\n")
+                                            else:
+                                                typst_content.append(f"    // Format d'image base64 non reconnu pour l'observation {obs['id']}.\n")
+                                        except Exception as e:
+                                            typst_content.append(f"    // Erreur lors de l'extraction de l'image pour l'observation {obs['id']}: {e}\n")
+                                            typst_content.append(f"    // Données Base64 (pour débogage): {photo_base64[:50]}...\n")
+                            typst_content.append("]\n") # Fermer la liste
+                            typst_content.append("\n#h(1em)\n")
+
+                    if not has_observations:
+                        typst_content.append("Aucune observation enregistrée pour cet espace.\n")
+                    typst_content.append("\n#pagebreak()\n") # Saut de page après chaque espace pour une meilleure lisibilité
+
+    # Écrire le contenu Typst dans un fichier
+    output_typst_file = os.path.join(output_dir, "report.typ")
+    with open(output_typst_file, 'w', encoding='utf-8') as f:
+        f.write("".join(typst_content))
+
+    print(f"Rapport Typst généré avec succès à {output_typst_file}")
+    print(f"Images enregistrées dans {images_dir}")
+
+if __name__ == "__main__":
+    # Remplacez 'votre_projet.json' par le chemin de votre fichier JSON téléchargé
+    # Exemple : generate_typst_report("projet_a1b2c3d4.json")
+    # Assurez-vous que le fichier JSON est dans le même répertoire que ce script
+    # ou fournissez le chemin complet.
+    
+    # Pour tester, vous pouvez créer un fichier JSON temporaire :
+    # dummy_project = {
+    #     "id": "proj123",
+    #     "location": "123 Rue de la Paix, Paris",
+    #     "buildingCharacteristics": "Immeuble résidentiel, 3 étages, construit en 1900.",
+    #     "levels": [
+    #         {
+    #             "id": "level1",
+    #             "name": "RDC",
+    #             "spaces": [
+    #                 {
+    #                     "id": "space1",
+    #                     "name": "Salon",
+    #                     "observations": {
+    #                         "floor": [
+    #                             {"id": "obs1", "text": "Parquet abîmé près de la fenêtre.", "photos": []}
+    #                         ],
+    #                         "wall": [
+    #                             {"id": "obs2", "text": "Peinture écaillée sur le mur nord.", "photos": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="]} # Exemple de base64 pour une image 1x1 PNG transparente
+    #                         ],
+    #                         "ceiling": []
+    #                     }
+    #                 }
+    #             ]
+    #         }
+    #     ]
+    # }
+    # with open("test_project.json", "w", encoding='utf-8') as f:
+    #     json.dump(dummy_project, f, indent=2, ensure_ascii=False)
+    # generate_typst_report("test_project.json")
+    
+    print("Veuillez appeler la fonction generate_typst_report avec le chemin de votre fichier JSON.")
+    print("Exemple : generate_typst_report('projet_votre_id.json')")
