@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom"; // Import useLocation
-import { getProjects, updateProject } from "@/lib/storage";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { getProjects, getLevelsForProject, getSpacesForLevel, addSpace, deleteSpace } from "@/lib/storage"; // Import new storage functions
 import { Project, Level, SpaceRoom } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,84 +17,68 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const LevelDetails = () => {
   const { projectId, levelId } = useParams<{ projectId: string; levelId: string }>();
   const navigate = useNavigate();
-  const location = useLocation(); // Initialize useLocation
+  const location = useLocation();
   const [project, setProject] = useState<Project | null>(null);
+  const [level, setLevel] = useState<Level | null>(null); // State for the current level
+  const [spaces, setSpaces] = useState<SpaceRoom[]>([]); // State for spaces
   const [isSpaceFormOpen, setIsSpaceFormOpen] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState("");
 
-  // Derive level from project state
-  const level = project?.levels.find((l) => l.id === levelId);
+  const fetchLevelAndSpaces = async () => {
+    if (!projectId || !levelId) return;
 
-  useEffect(() => {
-    const projects = getProjects();
+    const projects = await getProjects();
     const foundProject = projects.find((p) => p.id === projectId);
-    if (foundProject) {
-      setProject(foundProject);
-    } else {
+    if (!foundProject) {
       toast.error("Projet introuvable.");
       navigate("/");
+      return;
     }
-  }, [projectId, navigate, location.pathname]); // Added location.pathname to dependencies
+    setProject(foundProject);
 
-  useEffect(() => {
-    if (project && !level) {
+    const fetchedLevels = await getLevelsForProject(projectId);
+    const foundLevel = fetchedLevels.find((l) => l.id === levelId);
+    if (!foundLevel) {
       toast.error("Niveau introuvable.");
       navigate(`/project/${projectId}`);
+      return;
     }
-  }, [project, level, projectId, navigate, location.pathname]); // Added location.pathname to dependencies
+    setLevel(foundLevel);
 
-  const handleUpdateProjectState = (updatedProject: Project) => {
-    setProject(updatedProject); // Update local React state
-    updateProject(updatedProject); // Update localStorage
+    const fetchedSpaces = await getSpacesForLevel(levelId);
+    setSpaces(fetchedSpaces);
   };
 
-  const handleAddSpace = () => {
-    if (!project || !level || !newSpaceName.trim()) {
+  useEffect(() => {
+    fetchLevelAndSpaces();
+  }, [projectId, levelId, navigate, location.pathname]);
+
+  const handleAddSpace = async () => {
+    if (!level || !newSpaceName.trim()) {
       toast.error("Le nom de l'espace ne peut pas être vide.");
       return;
     }
 
-    const newSpace: SpaceRoom = {
-      id: uuidv4(),
+    const newSpaceData = {
       name: newSpaceName.trim(),
-      observations: {
-        floor: [],
-        wall: [],
-        ceiling: [],
-      }, // Initialize with default empty arrays, but now allows other keys
+      level_id: level.id,
     };
 
-    const updatedLevels = project.levels.map((l) =>
-      l.id === level.id ? { ...l, spaces: [...l.spaces, newSpace] } : l
-    );
-
-    const updatedProject = {
-      ...project,
-      levels: updatedLevels,
-    };
-
-    handleUpdateProjectState(updatedProject);
-    setNewSpaceName("");
-    setIsSpaceFormOpen(false);
-    toast.success(`Espace "${newSpace.name}" ajouté.`);
+    const addedSpace = await addSpace(newSpaceData);
+    if (addedSpace) {
+      setSpaces((prevSpaces) => [...prevSpaces, addedSpace]);
+      setNewSpaceName("");
+      setIsSpaceFormOpen(false);
+    }
   };
 
-  const handleDeleteSpace = (spaceId: string) => {
-    if (!project || !level) return;
+  const handleDeleteSpace = async (spaceId: string) => {
+    if (!level) return;
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cet espace et toutes ses observations ?")) {
-      const updatedLevels = project.levels.map((l) =>
-        l.id === level.id
-          ? { ...l, spaces: l.spaces.filter((space) => space.id !== spaceId) }
-          : l
-      );
-
-      const updatedProject = {
-        ...project,
-        levels: updatedLevels,
-      };
-
-      handleUpdateProjectState(updatedProject);
-      toast.success("Espace supprimé.");
+      const success = await deleteSpace(spaceId);
+      if (success) {
+        setSpaces((prevSpaces) => prevSpaces.filter((space) => space.id !== spaceId));
+      }
     }
   };
 
@@ -154,11 +138,11 @@ const LevelDetails = () => {
           </Dialog>
         </div>
 
-        {level.spaces.length === 0 ? (
+        {spaces.length === 0 ? (
           <p className="text-center text-gray-600 dark:text-gray-400">Aucun espace ajouté pour le moment. Ajoutez le premier espace !</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {level.spaces.map((space) => (
+            {spaces.map((space) => (
               <Card key={space.id} className="bg-white dark:bg-gray-800 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-lg font-medium">{space.name}</CardTitle>
@@ -173,7 +157,7 @@ const LevelDetails = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Total observations : {Object.values(space.observations).flat().length}
+                    Total observations : 0 (à charger)
                   </p>
                 </CardContent>
               </Card>

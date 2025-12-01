@@ -13,7 +13,7 @@ export interface SpaceRoom {
   id: string;
   name: string;
   level_id?: string; // Foreign key for Supabase
-  observations: Observation[]; // Observations will be fetched separately or joined
+  observations: { [key: string]: Observation[] }; // Observations will be fetched separately or joined
   created_at?: string; // Timestamp from Supabase
 }
 
@@ -28,7 +28,7 @@ export interface Level {
 export interface Project {
   id: string;
   location: string; // Postal address
-  building_characteristics: string; // Text description
+  buildingCharacteristics: string; // Text description - Changed from building_characteristics
   levels: Level[]; // Levels will be fetched separately or joined
   created_at?: string; // Timestamp from Supabase
 }

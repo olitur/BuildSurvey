@@ -16,11 +16,14 @@ export const getProjects = async (): Promise<Project[]> => {
   }
   // For now, we'll return projects without nested levels/spaces/observations
   // These will be fetched on demand in their respective detail pages.
-  return data.map(p => ({ ...p, levels: [] }));
+  return data.map(p => ({ ...p, levels: [], buildingCharacteristics: p.buildingCharacteristics || "" }));
 };
 
 export const addProject = async (project: Omit<Project, "id" | "levels" | "created_at">): Promise<Project | null> => {
-  const { data, error } = await supabase.from("projects").insert(project).select().single();
+  const { data, error } = await supabase.from("projects").insert({
+    location: project.location,
+    buildingCharacteristics: project.buildingCharacteristics,
+  }).select().single();
   if (error) {
     console.error("Error adding project:", error);
     toast.error("Erreur lors de la création du projet.");
@@ -32,7 +35,10 @@ export const addProject = async (project: Omit<Project, "id" | "levels" | "creat
 
 export const updateProject = async (updatedProject: Omit<Project, "levels" | "created_at">): Promise<Project | null> => {
   const { id, ...fieldsToUpdate } = updatedProject;
-  const { data, error } = await supabase.from("projects").update(fieldsToUpdate).eq("id", id).select().single();
+  const { data, error } = await supabase.from("projects").update({
+    location: fieldsToUpdate.location,
+    buildingCharacteristics: fieldsToUpdate.buildingCharacteristics,
+  }).eq("id", id).select().single();
   if (error) {
     console.error("Error updating project:", error);
     toast.error("Erreur lors de la mise à jour du projet.");
@@ -108,7 +114,7 @@ export const getSpacesForLevel = async (levelId: string): Promise<SpaceRoom[]> =
     toast.error("Erreur lors du chargement des espaces.");
     return [];
   }
-  return data.map(s => ({ ...s, observations: [] }));
+  return data.map(s => ({ ...s, observations: {} })); // Initialize observations as an empty object
 };
 
 export const addSpace = async (space: Omit<SpaceRoom, "id" | "observations" | "created_at">): Promise<SpaceRoom | null> => {
@@ -119,7 +125,7 @@ export const addSpace = async (space: Omit<SpaceRoom, "id" | "observations" | "c
     return null;
   }
   toast.success(`Espace "${data.name}" ajouté.`);
-  return { ...data, observations: [] };
+  return { ...data, observations: {} }; // Return with empty observations object
 };
 
 export const updateSpace = async (updatedSpace: Omit<SpaceRoom, "observations" | "created_at">): Promise<SpaceRoom | null> => {
@@ -131,7 +137,7 @@ export const updateSpace = async (updatedSpace: Omit<SpaceRoom, "observations" |
     return null;
   }
   toast.success("Espace mis à jour avec succès !");
-  return { ...data, observations: [] };
+  return { ...data, observations: {} }; // Return with empty observations object
 };
 
 export const deleteSpace = async (spaceId: string): Promise<boolean> => {

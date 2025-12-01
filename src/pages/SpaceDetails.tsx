@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom"; // Import useLocation
-import { getProjects, updateProject } from "@/lib/storage";
-import { Project, Level, SpaceRoom, Observation } from "@/types/project"; // Removed LocationInSpace
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { getProjects, getLevelsForProject, getSpacesForLevel, getObservationsForSpace, addObservation, deleteObservation, uploadImageToSupabase, deleteImageFromSupabase } from "@/lib/storage";
+import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, ArrowLeft, Trash2 } from "lucide-react";
@@ -19,48 +19,66 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const SpaceDetails = () => {
   const { projectId, levelId, spaceId } = useParams<{ projectId: string; levelId: string; spaceId: string }>();
   const navigate = useNavigate();
-  const location = useLocation(); // Initialize useLocation
+  const location = useLocation();
   const [project, setProject] = useState<Project | null>(null);
+  const [level, setLevel] = useState<Level | null>(null);
+  const [space, setSpace] = useState<SpaceRoom | null>(null);
+  const [observationsByLocation, setObservationsByLocation] = useState<{ [key: string]: Observation[] }>({});
   const [isObservationFormOpen, setIsObservationFormOpen] = useState(false);
   const [newObservationText, setNewObservationText] = useState("");
-  const [newObservationLocation, setNewObservationLocation] = useState<string>("floor"); // Changed type to string
-  const [showCustomLocationInput, setShowCustomLocationInput] = useState(false); // New state
-  const [customLocationName, setCustomLocationName] = useState(""); // New state
-  const [newObservationPhotos, setNewObservationPhotos] = useState<string[]>([]);
+  const [newObservationLocation, setNewObservationLocation] = useState<string>("floor");
+  const [showCustomLocationInput, setShowCustomLocationInput] = useState(false);
+  const [customLocationName, setCustomLocationName] = useState("");
+  const [newObservationFiles, setNewObservationFiles] = useState<File[]>([]); // Store File objects
+  const [newObservationPhotoPreviews, setNewObservationPhotoPreviews] = useState<string[]>([]); // Store base64 for previews
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
-  // Derive level and space from project state
-  const level = project?.levels.find((l) => l.id === levelId);
-  const space = level?.spaces.find((s) => s.id === spaceId);
+  const fetchSpaceAndObservations = async () => {
+    if (!projectId || !levelId || !spaceId) return;
 
-  useEffect(() => {
-    const projects = getProjects();
+    const projects = await getProjects();
     const foundProject = projects.find((p) => p.id === projectId);
-    if (foundProject) {
-      setProject(foundProject);
-    } else {
+    if (!foundProject) {
       toast.error("Projet introuvable.");
       navigate("/");
+      return;
     }
-  }, [projectId, navigate, location.pathname, levelId, spaceId]); // Added location.pathname, levelId, spaceId to dependencies
+    setProject(foundProject);
 
-  useEffect(() => {
-    if (project && !level) {
+    const fetchedLevels = await getLevelsForProject(projectId);
+    const foundLevel = fetchedLevels.find((l) => l.id === levelId);
+    if (!foundLevel) {
       toast.error("Niveau introuvable.");
       navigate(`/project/${projectId}`);
+      return;
     }
-    if (level && !space) {
+    setLevel(foundLevel);
+
+    const fetchedSpaces = await getSpacesForLevel(foundLevel.id);
+    const foundSpace = fetchedSpaces.find((s) => s.id === spaceId);
+    if (!foundSpace) {
       toast.error("Espace introuvable.");
       navigate(`/project/${projectId}/level/${levelId}`);
+      return;
     }
-  }, [project, level, space, projectId, levelId, navigate, location.pathname, spaceId]); // Added location.pathname, spaceId to dependencies
+    setSpace(foundSpace);
 
-  const handleUpdateProjectState = (updatedProject: Project) => {
-    setProject(updatedProject); // Update local React state
-    updateProject(updatedProject); // Update localStorage
+    const fetchedObservations = await getObservationsForSpace(spaceId);
+    const groupedObservations: { [key: string]: Observation[] } = {};
+    fetchedObservations.forEach(obs => {
+      if (!groupedObservations[obs.location_in_space]) {
+        groupedObservations[obs.location_in_space] = [];
+      }
+      groupedObservations[obs.location_in_space].push(obs);
+    });
+    setObservationsByLocation(groupedObservations);
   };
 
-  const handleAddObservation = () => {
+  useEffect(() => {
+    fetchSpaceAndObservations();
+  }, [projectId, levelId, spaceId, navigate, location.pathname]);
+
+  const handleAddObservation = async () => {
     if (!project || !level || !space || !newObservationText.trim()) {
       toast.error("Le texte de l'observation ne peut pas être vide.");
       return;
@@ -79,78 +97,71 @@ const SpaceDetails = () => {
       actualLocation = customLocationName.trim();
     }
 
-    const newObservation: Observation = {
-      id: uuidv4(),
+    setIsPhotoUploading(true);
+    const uploadedPhotoUrls: string[] = [];
+    for (const file of newObservationFiles) {
+      const url = await uploadImageToSupabase(file, project.id, level.id, space.id);
+      if (url) {
+        uploadedPhotoUrls.push(url);
+      } else {
+        toast.error(`Échec du chargement de l'image ${file.name}.`);
+        setIsPhotoUploading(false);
+        return;
+      }
+    }
+    setIsPhotoUploading(false);
+
+    const newObservationData: Omit<Observation, "id" | "created_at"> = {
       text: newObservationText.trim(),
-      photos: newObservationPhotos,
+      location_in_space: actualLocation,
+      photos: uploadedPhotoUrls,
+      space_id: space.id,
     };
 
-    const updatedSpaceObservations = {
-      ...space.observations,
-      [actualLocation]: [...(space.observations[actualLocation] || []), newObservation],
-    };
-
-    const updatedSpace: SpaceRoom = {
-      ...space,
-      observations: updatedSpaceObservations,
-    };
-
-    const updatedLevels = project.levels.map((l) =>
-      l.id === level.id
-        ? { ...l, spaces: l.spaces.map((s) => (s.id === space.id ? updatedSpace : s)) }
-        : l
-    );
-
-    const updatedProject = {
-      ...project,
-      levels: updatedLevels,
-    };
-
-    handleUpdateProjectState(updatedProject);
-
-    setNewObservationText("");
-    setNewObservationLocation("floor"); // Reset to default
-    setNewObservationPhotos([]);
-    setShowCustomLocationInput(false); // Reset custom input visibility
-    setCustomLocationName(""); // Reset custom input value
-    setIsObservationFormOpen(false);
-    toast.success("Observation ajoutée.");
+    const addedObservation = await addObservation(newObservationData);
+    if (addedObservation) {
+      setObservationsByLocation(prev => ({
+        ...prev,
+        [actualLocation]: [...(prev[actualLocation] || []), addedObservation],
+      }));
+      setNewObservationText("");
+      setNewObservationLocation("floor");
+      setNewObservationFiles([]);
+      setNewObservationPhotoPreviews([]);
+      setShowCustomLocationInput(false);
+      setCustomLocationName("");
+      setIsObservationFormOpen(false);
+    }
   };
 
-  const handleDeleteObservation = (locationKey: string, observationId: string) => { // Changed type to string
+  const handleDeleteObservation = async (locationKey: string, observationId: string) => {
     if (!project || !level || !space) return;
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation ?")) {
-      const updatedSpaceObservations = {
-        ...space.observations,
-        [locationKey]: space.observations[locationKey].filter((obs) => obs.id !== observationId),
-      };
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation et ses photos ?")) {
+      const observationToDelete = observationsByLocation[locationKey]?.find(obs => obs.id === observationId);
+      if (observationToDelete) {
+        // Delete photos from Supabase Storage first
+        for (const photoUrl of observationToDelete.photos) {
+          await deleteImageFromSupabase(photoUrl);
+        }
+      }
 
-      const updatedSpace: SpaceRoom = {
-        ...space,
-        observations: updatedSpaceObservations,
-      };
-
-      const updatedLevels = project.levels.map((l) =>
-        l.id === level.id
-          ? { ...l, spaces: l.spaces.map((s) => (s.id === space.id ? updatedSpace : s)) }
-          : l
-      );
-
-      const updatedProject = {
-        ...project,
-        levels: updatedLevels,
-      };
-
-      handleUpdateProjectState(updatedProject);
-      toast.success("Observation supprimée.");
+      const success = await deleteObservation(observationId);
+      if (success) {
+        setObservationsByLocation(prev => ({
+          ...prev,
+          [locationKey]: prev[locationKey].filter(obs => obs.id !== observationId),
+        }));
+      }
     }
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      setIsPhotoUploading(true);
-      const photoPromises: Promise<string>[] = Array.from(files).map((file) => {
+      const newFilesArray = Array.from(files);
+      setNewObservationFiles((prev) => [...prev, ...newFilesArray]);
+
+      const photoPromises: Promise<string>[] = newFilesArray.map((file) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => {
@@ -162,15 +173,12 @@ const SpaceDetails = () => {
 
       Promise.all(photoPromises)
         .then((base64Strings) => {
-          setNewObservationPhotos((prev) => [...prev, ...base64Strings]);
-          toast.success(`${base64Strings.length} photo(s) chargée(s).`);
+          setNewObservationPhotoPreviews((prev) => [...prev, ...base64Strings]);
+          toast.success(`${base64Strings.length} photo(s) sélectionnée(s).`);
         })
         .catch((error) => {
           console.error("Error reading files:", error);
-          toast.error("Erreur lors du chargement des photos.");
-        })
-        .finally(() => {
-          setIsPhotoUploading(false);
+          toast.error("Erreur lors de la lecture des photos.");
         });
     }
   };
@@ -214,9 +222,10 @@ const SpaceDetails = () => {
               <Button onClick={() => {
                 setNewObservationText("");
                 setNewObservationLocation("floor");
-                setNewObservationPhotos([]);
-                setShowCustomLocationInput(false); // Reset
-                setCustomLocationName(""); // Reset
+                setNewObservationFiles([]);
+                setNewObservationPhotoPreviews([]);
+                setShowCustomLocationInput(false);
+                setCustomLocationName("");
                 setIsObservationFormOpen(true);
               }}>
                 <PlusCircle className="h-4 w-4 mr-2" /> Ajouter une observation
@@ -249,7 +258,7 @@ const SpaceDetails = () => {
                       setNewObservationLocation(value);
                       setShowCustomLocationInput(value === "custom");
                       if (value !== "custom") {
-                        setCustomLocationName(""); // Clear custom name if not custom
+                        setCustomLocationName("");
                       }
                     }}
                   >
@@ -297,7 +306,7 @@ const SpaceDetails = () => {
                   <p className="col-span-4 text-center text-sm text-blue-500">Chargement des photos...</p>
                 )}
                 <div className="col-span-4 flex flex-wrap gap-2 justify-end">
-                  {newObservationPhotos.map((photo, index) => (
+                  {newObservationPhotoPreviews.map((photo, index) => (
                     <img key={index} src={photo} alt={`Observation ${index + 1}`} className="w-20 h-20 object-cover rounded-md" />
                   ))}
                 </div>
@@ -312,13 +321,13 @@ const SpaceDetails = () => {
           </Dialog>
         </div>
 
-        {Object.keys(space.observations).every(key => space.observations[key].length === 0) ? (
+        {Object.keys(observationsByLocation).every(key => observationsByLocation[key].length === 0) ? (
           <p className="text-center text-gray-600 dark:text-gray-400">Aucune observation ajoutée pour cet espace. Ajoutez la première observation !</p>
         ) : (
           <div className="space-y-6">
-            {Object.keys(space.observations).map((locationKey) => {
-              const observations = space.observations[locationKey];
-              if (observations.length === 0) return null; // Don't render empty sections
+            {Object.keys(observationsByLocation).map((locationKey) => {
+              const observations = observationsByLocation[locationKey];
+              if (observations.length === 0) return null;
 
               return (
                 <div key={locationKey} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
