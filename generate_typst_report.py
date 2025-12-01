@@ -2,6 +2,7 @@ import json
 import os
 import base64
 import re
+import sys # Import the sys module
 
 def generate_typst_report(json_file_path, output_dir="typst_report"):
     """
@@ -106,41 +107,9 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
     print(f"Images enregistrées dans {images_dir}")
 
 if __name__ == "__main__":
-    # Remplacez 'votre_projet.json' par le chemin de votre fichier JSON téléchargé
-    # Exemple : generate_typst_report("projet_a1b2c3d4.json")
-    # Assurez-vous que le fichier JSON est dans le même répertoire que ce script
-    # ou fournissez le chemin complet.
-    
-    # Pour tester, vous pouvez créer un fichier JSON temporaire :
-    # dummy_project = {
-    #     "id": "proj123",
-    #     "location": "123 Rue de la Paix, Paris",
-    #     "buildingCharacteristics": "Immeuble résidentiel, 3 étages, construit en 1900.",
-    #     "levels": [
-    #         {
-    #             "id": "level1",
-    #             "name": "RDC",
-    #             "spaces": [
-    #                 {
-    #                     "id": "space1",
-    #                     "name": "Salon",
-    #                     "observations": {
-    #                         "floor": [
-    #                             {"id": "obs1", "text": "Parquet abîmé près de la fenêtre.", "photos": []}
-    #                         ],
-    #                         "wall": [
-    #                             {"id": "obs2", "text": "Peinture écaillée sur le mur nord.", "photos": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="]} # Exemple de base64 pour une image 1x1 PNG transparente
-    #                         ],
-    #                         "ceiling": []
-    #                     }
-    #                 }
-    #             ]
-    #         }
-    #     ]
-    # }
-    # with open("test_project.json", "w", encoding='utf-8') as f:
-    #     json.dump(dummy_project, f, indent=2, ensure_ascii=False)
-    # generate_typst_report("test_project.json")
-    
-    print("Veuillez appeler la fonction generate_typst_report avec le chemin de votre fichier JSON.")
-    print("Exemple : generate_typst_report('projet_votre_id.json')")
+    if len(sys.argv) > 1:
+        json_file_path = sys.argv[1]
+        generate_typst_report(json_file_path)
+    else:
+        print("Erreur : Veuillez fournir le chemin du fichier JSON en argument.")
+        print("Exemple : python generate_typst_report.py 'projet_votre_id.json'")
