@@ -8,6 +8,7 @@ export default defineConfig(() => ({
     host: "::",
     port: 8080,
   },
+  base: "/[YOUR_REPOSITORY_NAME]/", // IMPORTANT: Replace [YOUR_REPOSITORY_NAME] with your actual GitHub repository name
   plugins: [dyadComponentTagger(), react()],
   resolve: {
     alias: {
