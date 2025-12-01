@@ -49,15 +49,16 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
 
                     # Observations
                     has_observations = False
-                    for location_key in ["floor", "wall", "ceiling"]:
+                    # Iterate over all observation locations dynamically
+                    for location_key, observations in space['observations'].items():
+                        # Map predefined keys to French names, otherwise capitalize the key
                         location_name = {
                             "floor": "Sol",
                             "wall": "Mur",
                             "ceiling": "Plafond"
-                        }[location_key]
-                        observations = space['observations'][location_key]
+                        }.get(location_key, location_key.capitalize())
 
-                        if observations:
+                        if observations: # Only process if there are observations for this key
                             has_observations = True
                             typst_content.append(f"==== Observations du {location_name}\n")
                             typst_content.append("#list[\n")
