@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; // Import useLocation
 import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom } from "@/types/project";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const LevelDetails = () => {
   const { projectId, levelId } = useParams<{ projectId: string; levelId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // Initialize useLocation
   const [project, setProject] = useState<Project | null>(null);
   const [isSpaceFormOpen, setIsSpaceFormOpen] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState("");
@@ -33,14 +34,14 @@ const LevelDetails = () => {
       toast.error("Projet introuvable.");
       navigate("/");
     }
-  }, [projectId, navigate]);
+  }, [projectId, navigate, location.pathname]); // Added location.pathname to dependencies
 
   useEffect(() => {
     if (project && !level) {
       toast.error("Niveau introuvable.");
       navigate(`/project/${projectId}`);
     }
-  }, [project, level, projectId, navigate]);
+  }, [project, level, projectId, navigate, location.pathname]); // Added location.pathname to dependencies
 
   const handleUpdateProjectState = (updatedProject: Project) => {
     setProject(updatedProject); // Update local React state

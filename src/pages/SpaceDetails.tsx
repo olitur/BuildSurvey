@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; // Import useLocation
 import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project"; // Removed LocationInSpace
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const SpaceDetails = () => {
   const { projectId, levelId, spaceId } = useParams<{ projectId: string; levelId: string; spaceId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // Initialize useLocation
   const [project, setProject] = useState<Project | null>(null);
   const [isObservationFormOpen, setIsObservationFormOpen] = useState(false);
   const [newObservationText, setNewObservationText] = useState("");
@@ -41,7 +42,7 @@ const SpaceDetails = () => {
       toast.error("Projet introuvable.");
       navigate("/");
     }
-  }, [projectId, navigate]);
+  }, [projectId, navigate, location.pathname, levelId, spaceId]); // Added location.pathname, levelId, spaceId to dependencies
 
   useEffect(() => {
     if (project && !level) {
@@ -52,7 +53,7 @@ const SpaceDetails = () => {
       toast.error("Espace introuvable.");
       navigate(`/project/${projectId}/level/${levelId}`);
     }
-  }, [project, level, space, projectId, levelId, navigate]);
+  }, [project, level, space, projectId, levelId, navigate, location.pathname, spaceId]); // Added location.pathname, spaceId to dependencies
 
   const handleUpdateProjectState = (updatedProject: Project) => {
     setProject(updatedProject); // Update local React state
