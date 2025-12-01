@@ -1,15 +1,94 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+"use client";
 
+import React, { useState, useEffect } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import ProjectForm from "@/components/ProjectForm";
+import ProjectCard from "@/components/ProjectCard";
+import { Project } from "@/types/project";
+import { getProjects, addProject, updateProject, deleteProject } from "@/lib/storage";
+import { PlusCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setProjects(getProjects());
+  }, []);
+
+  const handleAddProject = (newProject: Project) => {
+    setProjects(addProject(newProject));
+    setIsFormOpen(false);
+  };
+
+  const handleUpdateProject = (updatedProject: Project) => {
+    setProjects(updateProject(updatedProject));
+    setEditingProject(undefined);
+    setIsFormOpen(false);
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    if (window.confirm("Are you sure you want to delete this project?")) {
+      setProjects(deleteProject(projectId));
+    }
+  };
+
+  const handleEditClick = (project: Project) => {
+    setEditingProject(project);
+    setIsFormOpen(true);
+  };
+
+  const handleViewProject = (projectId: string) => {
+    navigate(`/project/${projectId}`);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">
-          Start building your amazing project here!
-        </p>
+    <div className="min-h-screen flex flex-col items-center bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-4xl mx-auto py-8">
+        <h1 className="text-4xl font-bold text-center mb-8 text-gray-900 dark:text-gray-50">
+          Building Inspection Projects
+        </h1>
+
+        <div className="flex justify-end mb-6">
+          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEditingProject(undefined); setIsFormOpen(true); }}>
+                <PlusCircle className="h-4 w-4 mr-2" /> Add New Project
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{editingProject ? "Edit Project" : "Create New Project"}</DialogTitle>
+              </DialogHeader>
+              <ProjectForm
+                onSubmit={editingProject ? handleUpdateProject : handleAddProject}
+                initialData={editingProject}
+                onCancel={() => setIsFormOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {projects.length === 0 ? (
+          <p className="text-center text-gray-600 dark:text-gray-400">No projects yet. Click "Add New Project" to get started!</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteProject}
+                onView={handleViewProject}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <MadeWithDyad />
     </div>
