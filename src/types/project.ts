@@ -6,16 +6,12 @@ export interface Observation {
   photos: string[]; // Will store URLs or base64 for local, then URLs for Supabase
 }
 
-export type LocationInSpace = "floor" | "wall" | "ceiling";
+// Removed LocationInSpace type as it will be dynamic
 
 export interface SpaceRoom {
   id: string;
   name: string; // e.g., "Living Room", "Kitchen"
-  observations: {
-    floor: Observation[];
-    wall: Observation[];
-    ceiling: Observation[];
-  };
+  observations: Record<string, Observation[]>; // Changed to a record for dynamic keys
 }
 
 export interface Level {

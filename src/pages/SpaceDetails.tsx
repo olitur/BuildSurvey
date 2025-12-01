@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; // Import useLocation
 import { getProjects, updateProject } from "@/lib/storage";
-import { Project, Level, SpaceRoom, Observation, LocationInSpace } from "@/types/project";
+import { Project, Level, SpaceRoom, Observation } from "@/types/project"; // Removed LocationInSpace
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2, Edit, Camera } from "lucide-react";
+import { PlusCircle, ArrowLeft, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,39 +19,46 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const SpaceDetails = () => {
   const { projectId, levelId, spaceId } = useParams<{ projectId: string; levelId: string; spaceId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // Initialize useLocation
   const [project, setProject] = useState<Project | null>(null);
-  const [level, setLevel] = useState<Level | null>(null);
-  const [space, setSpace] = useState<SpaceRoom | null>(null);
   const [isObservationFormOpen, setIsObservationFormOpen] = useState(false);
   const [newObservationText, setNewObservationText] = useState("");
-  const [newObservationLocation, setNewObservationLocation] = useState<LocationInSpace>("floor");
+  const [newObservationLocation, setNewObservationLocation] = useState<string>("floor"); // Changed type to string
+  const [showCustomLocationInput, setShowCustomLocationInput] = useState(false); // New state
+  const [customLocationName, setCustomLocationName] = useState(""); // New state
   const [newObservationPhotos, setNewObservationPhotos] = useState<string[]>([]);
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false); // Nouvel état pour le chargement des photos
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+
+  // Derive level and space from project state
+  const level = project?.levels.find((l) => l.id === levelId);
+  const space = level?.spaces.find((s) => s.id === spaceId);
 
   useEffect(() => {
     const projects = getProjects();
     const foundProject = projects.find((p) => p.id === projectId);
     if (foundProject) {
       setProject(foundProject);
-      const foundLevel = foundProject.levels.find((l) => l.id === levelId);
-      if (foundLevel) {
-        setLevel(foundLevel);
-        const foundSpace = foundLevel.spaces.find((s) => s.id === spaceId);
-        if (foundSpace) {
-          setSpace(foundSpace);
-        } else {
-          toast.error("Espace introuvable.");
-          navigate(`/project/${projectId}/level/${levelId}`);
-        }
-      } else {
-        toast.error("Niveau introuvable.");
-        navigate(`/project/${projectId}`);
-      }
     } else {
       toast.error("Projet introuvable.");
       navigate("/");
     }
-  }, [projectId, levelId, spaceId, navigate]);
+  }, [projectId, navigate, location.pathname, levelId, spaceId]); // Added location.pathname, levelId, spaceId to dependencies
+
+  useEffect(() => {
+    if (project && !level) {
+      toast.error("Niveau introuvable.");
+      navigate(`/project/${projectId}`);
+    }
+    if (level && !space) {
+      toast.error("Espace introuvable.");
+      navigate(`/project/${projectId}/level/${levelId}`);
+    }
+  }, [project, level, space, projectId, levelId, navigate, location.pathname, spaceId]); // Added location.pathname, spaceId to dependencies
+
+  const handleUpdateProjectState = (updatedProject: Project) => {
+    setProject(updatedProject); // Update local React state
+    updateProject(updatedProject); // Update localStorage
+  };
 
   const handleAddObservation = () => {
     if (!project || !level || !space || !newObservationText.trim()) {
@@ -63,18 +70,29 @@ const SpaceDetails = () => {
       return;
     }
 
+    let actualLocation = newObservationLocation;
+    if (showCustomLocationInput) {
+      if (!customLocationName.trim()) {
+        toast.error("Le nom de la localisation personnalisée ne peut pas être vide.");
+        return;
+      }
+      actualLocation = customLocationName.trim();
+    }
+
     const newObservation: Observation = {
       id: uuidv4(),
       text: newObservationText.trim(),
       photos: newObservationPhotos,
     };
 
+    const updatedSpaceObservations = {
+      ...space.observations,
+      [actualLocation]: [...(space.observations[actualLocation] || []), newObservation],
+    };
+
     const updatedSpace: SpaceRoom = {
       ...space,
-      observations: {
-        ...space.observations,
-        [newObservationLocation]: [...space.observations[newObservationLocation], newObservation],
-      },
+      observations: updatedSpaceObservations,
     };
 
     const updatedLevels = project.levels.map((l) =>
@@ -88,27 +106,28 @@ const SpaceDetails = () => {
       levels: updatedLevels,
     };
 
-    setProject(updatedProject);
-    setLevel(updatedLevels.find((l) => l.id === level.id) || null);
-    setSpace(updatedSpace);
-    updateProject(updatedProject);
+    handleUpdateProjectState(updatedProject);
 
     setNewObservationText("");
-    setNewObservationLocation("floor");
+    setNewObservationLocation("floor"); // Reset to default
     setNewObservationPhotos([]);
+    setShowCustomLocationInput(false); // Reset custom input visibility
+    setCustomLocationName(""); // Reset custom input value
     setIsObservationFormOpen(false);
     toast.success("Observation ajoutée.");
   };
 
-  const handleDeleteObservation = (location: LocationInSpace, observationId: string) => {
+  const handleDeleteObservation = (locationKey: string, observationId: string) => { // Changed type to string
     if (!project || !level || !space) return;
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation ?")) {
+      const updatedSpaceObservations = {
+        ...space.observations,
+        [locationKey]: space.observations[locationKey].filter((obs) => obs.id !== observationId),
+      };
+
       const updatedSpace: SpaceRoom = {
         ...space,
-        observations: {
-          ...space.observations,
-          [location]: space.observations[location].filter((obs) => obs.id !== observationId),
-        },
+        observations: updatedSpaceObservations,
       };
 
       const updatedLevels = project.levels.map((l) =>
@@ -122,10 +141,7 @@ const SpaceDetails = () => {
         levels: updatedLevels,
       };
 
-      setProject(updatedProject);
-      setLevel(updatedLevels.find((l) => l.id === level.id) || null);
-      setSpace(updatedSpace);
-      updateProject(updatedProject);
+      handleUpdateProjectState(updatedProject);
       toast.success("Observation supprimée.");
     }
   };
@@ -167,6 +183,16 @@ const SpaceDetails = () => {
     );
   }
 
+  // Helper to get display name for location
+  const getLocationDisplayName = (key: string) => {
+    switch (key) {
+      case "floor": return "Observations du Sol";
+      case "wall": return "Observations du Mur";
+      case "ceiling": return "Observations du Plafond";
+      default: return `Observations de ${key}`; // For custom locations
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-4xl mx-auto py-8">
@@ -189,6 +215,8 @@ const SpaceDetails = () => {
                 setNewObservationText("");
                 setNewObservationLocation("floor");
                 setNewObservationPhotos([]);
+                setShowCustomLocationInput(false); // Reset
+                setCustomLocationName(""); // Reset
                 setIsObservationFormOpen(true);
               }}>
                 <PlusCircle className="h-4 w-4 mr-2" /> Ajouter une observation
@@ -217,7 +245,13 @@ const SpaceDetails = () => {
                   </Label>
                   <Select
                     value={newObservationLocation}
-                    onValueChange={(value: LocationInSpace) => setNewObservationLocation(value)}
+                    onValueChange={(value) => {
+                      setNewObservationLocation(value);
+                      setShowCustomLocationInput(value === "custom");
+                      if (value !== "custom") {
+                        setCustomLocationName(""); // Clear custom name if not custom
+                      }
+                    }}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Sélectionner une localisation" />
@@ -226,9 +260,24 @@ const SpaceDetails = () => {
                       <SelectItem value="floor">Sol</SelectItem>
                       <SelectItem value="wall">Mur</SelectItem>
                       <SelectItem value="ceiling">Plafond</SelectItem>
+                      <SelectItem value="custom">Autre (spécifier)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {showCustomLocationInput && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="customLocationName" className="text-right">
+                      Nom personnalisé
+                    </Label>
+                    <Input
+                      id="customLocationName"
+                      value={customLocationName}
+                      onChange={(e) => setCustomLocationName(e.target.value)}
+                      placeholder="ex: Fenêtre, Porte, Toit"
+                      className="col-span-3"
+                    />
+                  </div>
+                )}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="observationPhotos" className="text-right">
                     Prendre/Sélectionner des photos
@@ -236,12 +285,12 @@ const SpaceDetails = () => {
                   <Input
                     id="observationPhotos"
                     type="file"
-                    multiple // Attribut 'multiple' ajouté
+                    multiple
                     accept="image/*"
                     capture="environment"
                     onChange={handlePhotoUpload}
                     className="col-span-3"
-                    disabled={isPhotoUploading} // Désactiver l'input pendant le chargement
+                    disabled={isPhotoUploading}
                   />
                 </div>
                 {isPhotoUploading && (
@@ -255,7 +304,7 @@ const SpaceDetails = () => {
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} disabled={isPhotoUploading}>Annuler</Button>
-                <Button onClick={handleAddObservation} disabled={isPhotoUploading || !newObservationText.trim()}>
+                <Button onClick={handleAddObservation} disabled={isPhotoUploading || !newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
                   Ajouter l'observation
                 </Button>
               </div>
@@ -263,44 +312,38 @@ const SpaceDetails = () => {
           </Dialog>
         </div>
 
-        {Object.keys(space.observations).every(key => space.observations[key as LocationInSpace].length === 0) ? (
+        {Object.keys(space.observations).every(key => space.observations[key].length === 0) ? (
           <p className="text-center text-gray-600 dark:text-gray-400">Aucune observation ajoutée pour cet espace. Ajoutez la première observation !</p>
         ) : (
           <div className="space-y-6">
-            {["floor", "wall", "ceiling"].map((locationKey) => {
-              const location = locationKey as LocationInSpace;
-              const observations = space.observations[location];
+            {Object.keys(space.observations).map((locationKey) => {
+              const observations = space.observations[locationKey];
+              if (observations.length === 0) return null; // Don't render empty sections
+
               return (
-                <div key={location} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
+                <div key={locationKey} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
                   <h3 className="text-xl font-semibold mb-4 capitalize text-gray-800 dark:text-gray-100">
-                    {location === "floor" ? "Observations du Sol" : location === "wall" ? "Observations du Mur" : "Observations du Plafond"}
+                    {getLocationDisplayName(locationKey)}
                   </h3>
-                  {observations.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Aucune observation pour le {location === "floor" ? "sol" : location === "wall" ? "mur" : "plafond"}.</p>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4">
-                      {observations.map((observation) => (
-                        <Card key={observation.id} className="bg-gray-50 dark:bg-gray-700 shadow-sm">
-                          <CardContent className="p-4">
-                            <p className="text-sm text-gray-700 dark:text-gray-200 mb-2">{observation.text}</p>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              {observation.photos.map((photo, index) => (
-                                <img key={index} src={photo} alt={`Observation photo ${index + 1}`} className="w-16 h-16 object-cover rounded-md" />
-                              ))}
-                            </div>
-                            <div className="flex justify-end space-x-2">
-                              {/* <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
-                              </Button> */}
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteObservation(location, observation.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                  <div className="grid grid-cols-1 gap-4">
+                    {observations.map((observation) => (
+                      <Card key={observation.id} className="bg-gray-50 dark:bg-gray-700 shadow-sm">
+                        <CardContent className="p-4">
+                          <p className="text-sm text-gray-700 dark:text-gray-200 mb-2">{observation.text}</p>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {observation.photos.map((photo, index) => (
+                              <img key={index} src={photo} alt={`Observation photo ${index + 1}`} className="w-16 h-16 object-cover rounded-md" />
+                            ))}
+                          </div>
+                          <div className="flex justify-end space-x-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteObservation(locationKey, observation.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               );
             })}

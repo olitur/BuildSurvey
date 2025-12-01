@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; // Import useLocation
 import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2, Edit, Eye } from "lucide-react";
+import { PlusCircle, ArrowLeft, Trash2, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,28 +17,36 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const LevelDetails = () => {
   const { projectId, levelId } = useParams<{ projectId: string; levelId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // Initialize useLocation
   const [project, setProject] = useState<Project | null>(null);
-  const [level, setLevel] = useState<Level | null>(null);
   const [isSpaceFormOpen, setIsSpaceFormOpen] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState("");
+
+  // Derive level from project state
+  const level = project?.levels.find((l) => l.id === levelId);
 
   useEffect(() => {
     const projects = getProjects();
     const foundProject = projects.find((p) => p.id === projectId);
     if (foundProject) {
       setProject(foundProject);
-      const foundLevel = foundProject.levels.find((l) => l.id === levelId);
-      if (foundLevel) {
-        setLevel(foundLevel);
-      } else {
-        toast.error("Niveau introuvable.");
-        navigate(`/project/${projectId}`);
-      }
     } else {
       toast.error("Projet introuvable.");
       navigate("/");
     }
-  }, [projectId, levelId, navigate]);
+  }, [projectId, navigate, location.pathname]); // Added location.pathname to dependencies
+
+  useEffect(() => {
+    if (project && !level) {
+      toast.error("Niveau introuvable.");
+      navigate(`/project/${projectId}`);
+    }
+  }, [project, level, projectId, navigate, location.pathname]); // Added location.pathname to dependencies
+
+  const handleUpdateProjectState = (updatedProject: Project) => {
+    setProject(updatedProject); // Update local React state
+    updateProject(updatedProject); // Update localStorage
+  };
 
   const handleAddSpace = () => {
     if (!project || !level || !newSpaceName.trim()) {
@@ -53,7 +61,7 @@ const LevelDetails = () => {
         floor: [],
         wall: [],
         ceiling: [],
-      },
+      }, // Initialize with default empty arrays, but now allows other keys
     };
 
     const updatedLevels = project.levels.map((l) =>
@@ -65,9 +73,7 @@ const LevelDetails = () => {
       levels: updatedLevels,
     };
 
-    setProject(updatedProject);
-    setLevel(updatedLevels.find(l => l.id === level.id) || null); // Update the local level state
-    updateProject(updatedProject);
+    handleUpdateProjectState(updatedProject);
     setNewSpaceName("");
     setIsSpaceFormOpen(false);
     toast.success(`Espace "${newSpace.name}" ajouté.`);
@@ -87,9 +93,7 @@ const LevelDetails = () => {
         levels: updatedLevels,
       };
 
-      setProject(updatedProject);
-      setLevel(updatedLevels.find(l => l.id === level.id) || null); // Update the local level state
-      updateProject(updatedProject);
+      handleUpdateProjectState(updatedProject);
       toast.success("Espace supprimé.");
     }
   };
@@ -162,9 +166,6 @@ const LevelDetails = () => {
                     <Button variant="ghost" size="icon" onClick={() => navigate(`/project/${projectId}/level/${levelId}/space/${space.id}`)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {/* <Button variant="ghost" size="icon">
-                      <Edit className="h-4 w-4" />
-                    </Button> */}
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteSpace(space.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -172,7 +173,7 @@ const LevelDetails = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Observations : Sol ({space.observations.floor.length}), Mur ({space.observations.wall.length}), Plafond ({space.observations.ceiling.length})
+                    Total observations : {Object.values(space.observations).flat().length}
                   </p>
                 </CardContent>
               </Card>
