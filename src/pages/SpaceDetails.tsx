@@ -205,14 +205,14 @@ const SpaceDetails = () => {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="observationPhotos" className="text-right">
-                    Photos
+                    Ajouter des photos (appareil photo)
                   </Label>
                   <Input
                     id="observationPhotos"
                     type="file"
                     multiple
                     accept="image/*"
-                    capture="environment" // Added capture attribute here
+                    capture="environment" // L'attribut capture est déjà présent
                     onChange={handlePhotoUpload}
                     className="col-span-3"
                   />
