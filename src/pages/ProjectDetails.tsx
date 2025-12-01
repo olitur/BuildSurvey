@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom"; // Ajout de useLocation
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2, Edit, Eye, Download } from "lucide-react"; // Added Download icon
+import { PlusCircle, ArrowLeft, Trash2, Edit, Eye, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const ProjectDetails = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const location = useLocation(); // Initialisation de useLocation
+  const location = useLocation();
   const [project, setProject] = useState<Project | null>(null);
   const [isLevelFormOpen, setIsLevelFormOpen] = useState(false);
   const [newLevelName, setNewLevelName] = useState("");
@@ -31,7 +31,7 @@ const ProjectDetails = () => {
       toast.error("Projet introuvable.");
       navigate("/");
     }
-  }, [projectId, navigate, location.pathname]); // Ajout de location.pathname comme dépendance
+  }, [projectId, navigate, location.pathname]);
 
   const handleAddLevel = () => {
     if (!project || !newLevelName.trim()) {
@@ -70,18 +70,22 @@ const ProjectDetails = () => {
   };
 
   const handleDownloadProjectData = () => {
-    if (!project) {
-      toast.error("Aucune donnée de projet à télécharger.");
+    // Fetch the latest project data directly from local storage
+    const allProjects = getProjects();
+    const projectToDownload = allProjects.find((p) => p.id === projectId);
+
+    if (!projectToDownload) {
+      toast.error("Aucune donnée de projet à télécharger ou projet introuvable.");
       return;
     }
 
     try {
-      const projectData = JSON.stringify(project, null, 2); // Pretty print JSON
+      const projectData = JSON.stringify(projectToDownload, null, 2); // Pretty print JSON
       const blob = new Blob([projectData], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `projet_${project.id}.json`;
+      a.download = `projet_${projectToDownload.id}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
