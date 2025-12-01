@@ -2,7 +2,7 @@ import json
 import os
 import base64
 import re
-import sys # Import the sys module
+import sys
 
 def generate_typst_report(json_file_path, output_dir="typst_report"):
     """
@@ -107,9 +107,15 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
     print(f"Images enregistrées dans {images_dir}")
 
 if __name__ == "__main__":
+    # Chemin du fichier JSON hardcodé pour le débogage
+    hardcoded_json_file_path = 'projet_0a900d8a-657c-4571-be3b-ba366ce51141.json'
+    
     if len(sys.argv) > 1:
+        # Si un argument est fourni, utilisez-le (comportement normal)
         json_file_path = sys.argv[1]
+        print(f"Utilisation du chemin fourni en argument : {json_file_path}")
         generate_typst_report(json_file_path)
     else:
-        print("Erreur : Veuillez fournir le chemin du fichier JSON en argument.")
-        print("Exemple : python generate_typst_report.py 'projet_votre_id.json'")
+        # Sinon, utilisez le chemin hardcodé
+        print(f"Aucun argument fourni. Utilisation du chemin hardcodé : {hardcoded_json_file_path}")
+        generate_typst_report(hardcoded_json_file_path)
