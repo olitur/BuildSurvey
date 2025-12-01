@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
+import { MadeWithDyad } from "@/components/made-with-dyad"; // Added import
 
 const ProjectDetails = () => {
   const { projectId } = useParams<{ projectId: string }>();
