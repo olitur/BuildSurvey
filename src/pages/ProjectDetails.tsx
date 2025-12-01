@@ -6,7 +6,7 @@ import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2, Edit, Eye } from "lucide-react"; // Added Eye import
+import { PlusCircle, ArrowLeft, Trash2, Edit, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,14 +27,14 @@ const ProjectDetails = () => {
     if (foundProject) {
       setProject(foundProject);
     } else {
-      toast.error("Project not found.");
+      toast.error("Projet introuvable.");
       navigate("/");
     }
   }, [projectId, navigate]);
 
   const handleAddLevel = () => {
     if (!project || !newLevelName.trim()) {
-      toast.error("Level name cannot be empty.");
+      toast.error("Le nom du niveau ne peut pas être vide.");
       return;
     }
 
@@ -52,26 +52,26 @@ const ProjectDetails = () => {
     updateProject(updatedProject);
     setNewLevelName("");
     setIsLevelFormOpen(false);
-    toast.success(`Level "${newLevel.name}" added.`);
+    toast.success(`Niveau "${newLevel.name}" ajouté.`);
   };
 
   const handleDeleteLevel = (levelId: string) => {
     if (!project) return;
-    if (window.confirm("Are you sure you want to delete this level and all its contents?")) {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce niveau et tout son contenu ?")) {
       const updatedProject = {
         ...project,
         levels: project.levels.filter((level) => level.id !== levelId),
       };
       setProject(updatedProject);
       updateProject(updatedProject);
-      toast.success("Level deleted.");
+      toast.success("Niveau supprimé.");
     }
   };
 
   if (!project) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-400">Loading project...</p>
+        <p className="text-gray-600 dark:text-gray-400">Chargement du projet...</p>
       </div>
     );
   }
@@ -80,52 +80,52 @@ const ProjectDetails = () => {
     <div className="min-h-screen flex flex-col items-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-4xl mx-auto py-8">
         <Button variant="outline" onClick={() => navigate("/")} className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Projects
+          <ArrowLeft className="h-4 w-4 mr-2" /> Retour aux projets
         </Button>
 
         <h1 className="text-3xl font-bold text-center mb-4 text-gray-900 dark:text-gray-50">
-          Project: {project.location}
+          Projet: {project.location}
         </h1>
         <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
-          {project.buildingCharacteristics || "No characteristics provided."}
+          {project.buildingCharacteristics || "Aucune caractéristique fournie."}
         </p>
 
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Levels</h2>
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Niveaux</h2>
           <Dialog open={isLevelFormOpen} onOpenChange={setIsLevelFormOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => setIsLevelFormOpen(true)}>
-                <PlusCircle className="h-4 w-4 mr-2" /> Add Level
+                <PlusCircle className="h-4 w-4 mr-2" /> Ajouter un niveau
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Add New Level</DialogTitle>
+                <DialogTitle>Ajouter un nouveau niveau</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="levelName" className="text-right">
-                    Level Name
+                    Nom du niveau
                   </Label>
                   <Input
                     id="levelName"
                     value={newLevelName}
                     onChange={(e) => setNewLevelName(e.target.value)}
-                    placeholder="e.g., R+0, R-1, Level 1"
+                    placeholder="ex: R+0, R-1, Niveau 1"
                     className="col-span-3"
                   />
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsLevelFormOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddLevel}>Add Level</Button>
+                <Button variant="outline" onClick={() => setIsLevelFormOpen(false)}>Annuler</Button>
+                <Button onClick={handleAddLevel}>Ajouter le niveau</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
         {project.levels.length === 0 ? (
-          <p className="text-center text-gray-600 dark:text-gray-400">No levels added yet. Add the first level!</p>
+          <p className="text-center text-gray-600 dark:text-gray-400">Aucun niveau ajouté pour le moment. Ajoutez le premier niveau !</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {project.levels.map((level) => (
@@ -146,7 +146,7 @@ const ProjectDetails = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {level.spaces.length} spaces
+                    {level.spaces.length} espaces
                   </p>
                 </CardContent>
               </Card>

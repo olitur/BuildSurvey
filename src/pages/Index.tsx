@@ -10,6 +10,7 @@ import { Project } from "@/types/project";
 import { getProjects, addProject, updateProject, deleteProject } from "@/lib/storage";
 import { PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner"; // Import toast for messages
 
 const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -24,17 +25,20 @@ const Index = () => {
   const handleAddProject = (newProject: Project) => {
     setProjects(addProject(newProject));
     setIsFormOpen(false);
+    toast.success("Projet créé avec succès !");
   };
 
   const handleUpdateProject = (updatedProject: Project) => {
     setProjects(updateProject(updatedProject));
     setEditingProject(undefined);
     setIsFormOpen(false);
+    toast.success("Projet mis à jour avec succès !");
   };
 
   const handleDeleteProject = (projectId: string) => {
-    if (window.confirm("Are you sure you want to delete this project?")) {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce projet ?")) {
       setProjects(deleteProject(projectId));
+      toast.success("Projet supprimé.");
     }
   };
 
@@ -51,19 +55,19 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-4xl mx-auto py-8">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-900 dark:text-gray-50">
-          Building Inspection Projects
+          Projets d'Inspection de Bâtiments
         </h1>
 
         <div className="flex justify-end mb-6">
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditingProject(undefined); setIsFormOpen(true); }}>
-                <PlusCircle className="h-4 w-4 mr-2" /> Add New Project
+                <PlusCircle className="h-4 w-4 mr-2" /> Ajouter un nouveau projet
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>{editingProject ? "Edit Project" : "Create New Project"}</DialogTitle>
+                <DialogTitle>{editingProject ? "Modifier le projet" : "Créer un nouveau projet"}</DialogTitle>
               </DialogHeader>
               <ProjectForm
                 onSubmit={editingProject ? handleUpdateProject : handleAddProject}
@@ -75,7 +79,7 @@ const Index = () => {
         </div>
 
         {projects.length === 0 ? (
-          <p className="text-center text-gray-600 dark:text-gray-400">No projects yet. Click "Add New Project" to get started!</p>
+          <p className="text-center text-gray-600 dark:text-gray-400">Aucun projet pour le moment. Cliquez sur "Ajouter un nouveau projet" pour commencer !</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (

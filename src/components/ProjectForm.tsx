@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const formSchema = z.object({
   location: z.string().min(2, {
-    message: "Location must be at least 2 characters.",
+    message: "La localisation doit contenir au moins 2 caractères.",
   }),
   buildingCharacteristics: z.string().optional(),
 });
@@ -57,9 +57,9 @@ const ProjectForm = ({ onSubmit, initialData, onCancel }: ProjectFormProps) => {
           name="location"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Project Location</FormLabel>
+              <FormLabel>Localisation du projet</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., 123 Main St, Anytown" {...field} />
+                <Input placeholder="ex: 123 Rue Principale, Anytown" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -70,10 +70,10 @@ const ProjectForm = ({ onSubmit, initialData, onCancel }: ProjectFormProps) => {
           name="buildingCharacteristics"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Building Characteristics (Optional)</FormLabel>
+              <FormLabel>Caractéristiques du bâtiment (Facultatif)</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="e.g., 3-story residential building, built 1980"
+                  placeholder="ex: Immeuble résidentiel de 3 étages, construit en 1980"
                   {...field}
                 />
               </FormControl>
@@ -84,11 +84,11 @@ const ProjectForm = ({ onSubmit, initialData, onCancel }: ProjectFormProps) => {
         <div className="flex justify-end space-x-2">
           {onCancel && (
             <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
+              Annuler
             </Button>
           )}
           <Button type="submit">
-            {initialData ? "Update Project" : "Create Project"}
+            {initialData ? "Mettre à jour le projet" : "Créer le projet"}
           </Button>
         </div>
       </form>

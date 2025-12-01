@@ -20,17 +20,17 @@ const ProjectCard = ({ project, onEdit, onDelete, onView }: ProjectCardProps) =>
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground">
-          {project.buildingCharacteristics || "No characteristics provided."}
+          {project.buildingCharacteristics || "Aucune caractéristique fournie."}
         </p>
         <div className="flex justify-end space-x-2">
           <Button variant="outline" size="sm" onClick={() => onView(project.id)}>
-            <Eye className="h-4 w-4 mr-2" /> View
+            <Eye className="h-4 w-4 mr-2" /> Voir
           </Button>
           <Button variant="outline" size="sm" onClick={() => onEdit(project)}>
-            <Edit className="h-4 w-4 mr-2" /> Edit
+            <Edit className="h-4 w-4 mr-2" /> Modifier
           </Button>
           <Button variant="destructive" size="sm" onClick={() => onDelete(project.id)}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
+            <Trash2 className="h-4 w-4 mr-2" /> Supprimer
           </Button>
         </div>
       </CardContent>
