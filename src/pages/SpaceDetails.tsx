@@ -2,7 +2,16 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { getProjects, getLevelsForProject, getSpacesForLevel, getObservationsForSpace, addObservation, deleteObservation, uploadImageToSupabase, deleteImageFromSupabase } from "@/lib/storage";
+import {
+  getProjects,
+  getLevelsForProject,
+  getSpacesForLevel,
+  getObservationsForSpace,
+  addObservation,
+  deleteObservation,
+  uploadImageToSupabase,
+  deleteImageFromSupabase,
+} from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
