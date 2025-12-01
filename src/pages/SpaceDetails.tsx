@@ -26,6 +26,7 @@ const SpaceDetails = () => {
   const [newObservationText, setNewObservationText] = useState("");
   const [newObservationLocation, setNewObservationLocation] = useState<LocationInSpace>("floor");
   const [newObservationPhotos, setNewObservationPhotos] = useState<string[]>([]);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false); // Nouvel état pour le chargement des photos
 
   useEffect(() => {
     const projects = getProjects();
@@ -55,6 +56,10 @@ const SpaceDetails = () => {
   const handleAddObservation = () => {
     if (!project || !level || !space || !newObservationText.trim()) {
       toast.error("Le texte de l'observation ne peut pas être vide.");
+      return;
+    }
+    if (isPhotoUploading) {
+      toast.error("Veuillez attendre la fin du chargement des photos.");
       return;
     }
 
@@ -127,14 +132,30 @@ const SpaceDetails = () => {
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setNewObservationPhotos((prev) => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
+    if (files && files.length > 0) {
+      setIsPhotoUploading(true);
+      const photoPromises: Promise<string>[] = Array.from(files).map((file) => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+        });
       });
+
+      Promise.all(photoPromises)
+        .then((base64Strings) => {
+          setNewObservationPhotos((prev) => [...prev, ...base64Strings]);
+          toast.success(`${base64Strings.length} photo(s) chargée(s).`);
+        })
+        .catch((error) => {
+          console.error("Error reading files:", error);
+          toast.error("Erreur lors du chargement des photos.");
+        })
+        .finally(() => {
+          setIsPhotoUploading(false);
+        });
     }
   };
 
@@ -164,7 +185,12 @@ const SpaceDetails = () => {
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Observations</h2>
           <Dialog open={isObservationFormOpen} onOpenChange={setIsObservationFormOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setIsObservationFormOpen(true)}>
+              <Button onClick={() => {
+                setNewObservationText("");
+                setNewObservationLocation("floor");
+                setNewObservationPhotos([]);
+                setIsObservationFormOpen(true);
+              }}>
                 <PlusCircle className="h-4 w-4 mr-2" /> Ajouter une observation
               </Button>
             </DialogTrigger>
@@ -215,8 +241,12 @@ const SpaceDetails = () => {
                     capture="environment"
                     onChange={handlePhotoUpload}
                     className="col-span-3"
+                    disabled={isPhotoUploading} // Désactiver l'input pendant le chargement
                   />
                 </div>
+                {isPhotoUploading && (
+                  <p className="col-span-4 text-center text-sm text-blue-500">Chargement des photos...</p>
+                )}
                 <div className="col-span-4 flex flex-wrap gap-2 justify-end">
                   {newObservationPhotos.map((photo, index) => (
                     <img key={index} src={photo} alt={`Observation ${index + 1}`} className="w-20 h-20 object-cover rounded-md" />
@@ -224,8 +254,10 @@ const SpaceDetails = () => {
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)}>Annuler</Button>
-                <Button onClick={handleAddObservation}>Ajouter l'observation</Button>
+                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} disabled={isPhotoUploading}>Annuler</Button>
+                <Button onClick={handleAddObservation} disabled={isPhotoUploading || !newObservationText.trim()}>
+                  Ajouter l'observation
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
