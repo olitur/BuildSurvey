@@ -6,7 +6,7 @@ import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2, Edit, Eye } from "lucide-react";
+import { PlusCircle, ArrowLeft, Trash2, Edit, Eye, Download } from "lucide-react"; // Added Download icon
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +68,30 @@ const ProjectDetails = () => {
     }
   };
 
+  const handleDownloadProjectData = () => {
+    if (!project) {
+      toast.error("Aucune donnée de projet à télécharger.");
+      return;
+    }
+
+    try {
+      const projectData = JSON.stringify(project, null, 2); // Pretty print JSON
+      const blob = new Blob([projectData], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `projet_${project.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Données du projet téléchargées avec succès !");
+    } catch (error) {
+      console.error("Erreur lors du téléchargement des données du projet:", error);
+      toast.error("Échec du téléchargement des données du projet.");
+    }
+  };
+
   if (!project) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -79,9 +103,14 @@ const ProjectDetails = () => {
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-4xl mx-auto py-8">
-        <Button variant="outline" onClick={() => navigate("/")} className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Retour aux projets
-        </Button>
+        <div className="flex justify-between items-center mb-6">
+          <Button variant="outline" onClick={() => navigate("/")}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Retour aux projets
+          </Button>
+          <Button onClick={handleDownloadProjectData}>
+            <Download className="h-4 w-4 mr-2" /> Télécharger les données du projet
+          </Button>
+        </div>
 
         <h1 className="text-3xl font-bold text-center mb-4 text-gray-900 dark:text-gray-50">
           Projet: {project.location}
