@@ -6,13 +6,13 @@ import { getProjects, updateProject } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2, Edit } from "lucide-react";
+import { PlusCircle, ArrowLeft, Trash2, Edit, Eye } from "lucide-react"; // Added Eye import
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
-import { MadeWithDyad } from "@/components/made-with-dyad"; // Added import
+import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const ProjectDetails = () => {
   const { projectId } = useParams<{ projectId: string }>();
