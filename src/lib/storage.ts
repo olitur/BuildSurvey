@@ -203,20 +203,26 @@ export const addObservation = async (observation: Omit<Observation, "id" | "crea
     toast.error("Vous devez être connecté pour créer une observation.");
     return null;
   }
-  const { data, error } = await supabase.from("observations").insert({
-    text: observation.text,
-    location_in_space: observation.location_in_space,
-    photos: observation.photos, // photos are now Base64 strings
-    space_id: observation.space_id,
-    user_id: userId,
-  }).select().single();
-  if (error) {
-    console.error("Error adding observation:", error);
-    toast.error("Erreur lors de la création de l'observation.");
+  try {
+    const { data, error } = await supabase.from("observations").insert({
+      text: observation.text,
+      location_in_space: observation.location_in_space,
+      // photos: observation.photos, // Temporarily commented out for debugging
+      space_id: observation.space_id,
+      user_id: userId,
+    }).select().single();
+    if (error) {
+      console.error("Error adding observation:", error);
+      toast.error("Erreur lors de la création de l'observation.");
+      return null;
+    }
+    toast.success("Observation ajoutée.");
+    return data;
+  } catch (e: any) {
+    console.error("Unhandled exception adding observation:", e);
+    toast.error(`Erreur inattendue lors de l'ajout de l'observation: ${e.message || e}`);
     return null;
   }
-  toast.success("Observation ajoutée.");
-  return data;
 };
 
 export const updateObservation = async (updatedObservation: Omit<Observation, "created_at">): Promise<Observation | null> => {
@@ -241,7 +247,3 @@ export const deleteObservation = async (observationId: string): Promise<boolean>
   toast.success("Observation supprimée.");
   return true;
 };
-
-// Removed image upload/delete functions as images are now stored as Base64 in the DB
-// export const uploadImageToSupabase = async (...) => { ... };
-// export const deleteImageFromSupabase = async (...) => { ... };
