@@ -16,7 +16,7 @@ const Login = () => {
         <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <Auth
             supabaseClient={supabase}
-            // Removed providers={['github']} to allow auto-detection
+            providers={['github']} {/* Re-added to only show GitHub */}
             appearance={{
               theme: ThemeSupa,
               variables: {
@@ -29,7 +29,7 @@ const Login = () => {
               },
             }}
             theme="light"
-            // redirectTo={window.location.origin + "/BuildSurvey/"}
+            redirectTo={window.location.origin + "/BuildSurvey/"} {/* Set the correct redirect URL */}
           />
         </div>
       </div>
