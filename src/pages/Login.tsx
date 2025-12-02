@@ -16,7 +16,7 @@ const Login = () => {
         <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <Auth
             supabaseClient={supabase}
-            providers={['github']} // J'ai ajouté 'github' ici pour activer le bouton
+            providers={[]} // Changé de ['github'] à [] pour permettre la détection dynamique
             appearance={{
               theme: ThemeSupa,
               variables: {
