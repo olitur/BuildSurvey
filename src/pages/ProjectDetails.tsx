@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { getProjects, updateProject } from "@/lib/storage";
+import { getProjects, updateProject, getLevelsForProject, addLevel, deleteLevel } from "@/lib/storage"; // Import new storage functions
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,60 +19,65 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [project, setProject] = useState<Project | null>(null);
+  const [levels, setLevels] = useState<Level[]>([]); // State for levels
   const [isLevelFormOpen, setIsLevelFormOpen] = useState(false);
   const [newLevelName, setNewLevelName] = useState("");
 
-  useEffect(() => {
-    const projects = getProjects();
+  const fetchProjectAndLevels = async () => {
+    if (!projectId) return;
+    const projects = await getProjects();
     const foundProject = projects.find((p) => p.id === projectId);
     if (foundProject) {
       setProject(foundProject);
+      const fetchedLevels = await getLevelsForProject(projectId);
+      setLevels(fetchedLevels);
     } else {
       toast.error("Projet introuvable.");
       navigate("/");
     }
+  };
+
+  useEffect(() => {
+    fetchProjectAndLevels();
   }, [projectId, navigate, location.pathname]);
 
-  const handleAddLevel = () => {
+  const handleAddLevel = async () => {
     if (!project || !newLevelName.trim()) {
       toast.error("Le nom du niveau ne peut pas être vide.");
       return;
     }
 
-    const newLevel: Level = {
-      id: uuidv4(),
+    const newLevelData = {
       name: newLevelName.trim(),
-      spaces: [],
+      project_id: project.id,
     };
 
-    const updatedProject = {
-      ...project,
-      levels: [...project.levels, newLevel],
-    };
-    setProject(updatedProject);
-    updateProject(updatedProject);
-    setNewLevelName("");
-    setIsLevelFormOpen(false);
-    toast.success(`Niveau "${newLevel.name}" ajouté.`);
+    const addedLevel = await addLevel(newLevelData);
+    if (addedLevel) {
+      setLevels((prevLevels) => [...prevLevels, addedLevel]);
+      setNewLevelName("");
+      setIsLevelFormOpen(false);
+    }
   };
 
-  const handleDeleteLevel = (levelId: string) => {
+  const handleDeleteLevel = async (levelId: string) => {
     if (!project) return;
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce niveau et tout son contenu ?")) {
-      const updatedProject = {
-        ...project,
-        levels: project.levels.filter((level) => level.id !== levelId),
-      };
-      setProject(updatedProject);
-      updateProject(updatedProject);
-      toast.success("Niveau supprimé.");
+      const success = await deleteLevel(levelId);
+      if (success) {
+        setLevels((prevLevels) => prevLevels.filter((level) => level.id !== levelId));
+      }
     }
   };
 
   const handleDownloadProjectData = () => {
     // Fetch the latest project data directly from local storage
-    const allProjects = getProjects();
-    const projectToDownload = allProjects.find((p) => p.id === projectId);
+    // NOTE: This currently downloads only the project and its levels, not nested spaces/observations.
+    // For a full download, you would need to fetch all nested data from Supabase.
+    const projectToDownload = {
+      ...project,
+      levels: levels, // Include fetched levels
+    };
 
     if (!projectToDownload) {
       toast.error("Aucune donnée de projet à télécharger ou projet introuvable.");
@@ -158,11 +163,11 @@ const ProjectDetails = () => {
           </Dialog>
         </div>
 
-        {project.levels.length === 0 ? (
+        {levels.length === 0 ? (
           <p className="text-center text-gray-600 dark:text-gray-400">Aucun niveau ajouté pour le moment. Ajoutez le premier niveau !</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {project.levels.map((level) => (
+            {levels.map((level) => (
               <Card key={level.id} className="bg-white dark:bg-gray-800 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-lg font-medium">{level.name}</CardTitle>
@@ -180,7 +185,8 @@ const ProjectDetails = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {level.spaces.length} espaces
+                    {/* This count will be inaccurate until spaces are fetched here or passed down */}
+                    0 espaces (à charger)
                   </p>
                 </CardContent>
               </Card>

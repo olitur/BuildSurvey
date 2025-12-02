@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,35 +10,49 @@ import { Project } from "@/types/project";
 import { getProjects, addProject, updateProject, deleteProject } from "@/lib/storage";
 import { PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner"; // Import toast for messages
+import { toast } from "sonner";
 
 const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setProjects(getProjects());
+  const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    const fetchedProjects = await getProjects();
+    setProjects(fetchedProjects);
+    setIsLoading(false);
   }, []);
 
-  const handleAddProject = (newProject: Project) => {
-    setProjects(addProject(newProject));
-    setIsFormOpen(false);
-    toast.success("Projet créé avec succès !");
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  const handleAddProject = async (newProjectData: Omit<Project, "id" | "levels" | "created_at">) => {
+    const addedProject = await addProject(newProjectData);
+    if (addedProject) {
+      fetchProjects(); // Re-fetch projects to update the list
+      setIsFormOpen(false);
+    }
   };
 
-  const handleUpdateProject = (updatedProject: Project) => {
-    setProjects(updateProject(updatedProject));
-    setEditingProject(undefined);
-    setIsFormOpen(false);
-    toast.success("Projet mis à jour avec succès !");
+  const handleUpdateProject = async (updatedProjectData: Omit<Project, "levels" | "created_at">) => {
+    const updated = await updateProject(updatedProjectData);
+    if (updated) {
+      fetchProjects(); // Re-fetch projects to update the list
+      setEditingProject(undefined);
+      setIsFormOpen(false);
+    }
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce projet ?")) {
-      setProjects(deleteProject(projectId));
-      toast.success("Projet supprimé.");
+      const success = await deleteProject(projectId);
+      if (success) {
+        fetchProjects(); // Re-fetch projects to update the list
+      }
     }
   };
 
@@ -78,7 +92,9 @@ const Index = () => {
           </Dialog>
         </div>
 
-        {projects.length === 0 ? (
+        {isLoading ? (
+          <p className="text-center text-gray-600 dark:text-gray-400">Chargement des projets...</p>
+        ) : projects.length === 0 ? (
           <p className="text-center text-gray-600 dark:text-gray-400">Aucun projet pour le moment. Cliquez sur "Ajouter un nouveau projet" pour commencer !</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
