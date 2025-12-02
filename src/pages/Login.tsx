@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react"; // Changed to import * as React
+import * as React from "react";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
@@ -8,7 +8,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Login = () => {
   return (
-    <React.Fragment> {/* Wrapped content in React.Fragment */}
+    <React.Fragment>
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
         <div className="w-full max-w-md mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-900 dark:text-gray-50">
@@ -30,7 +30,7 @@ const Login = () => {
                 },
               }}
               theme="light"
-              redirectTo={window.location.origin + "/BuildSurvey/"}
+              redirectTo={window.location.origin + "/BuildSurvey/#/"} {/* Added #/ for HashRouter */}
             />
           </div>
         </div>
