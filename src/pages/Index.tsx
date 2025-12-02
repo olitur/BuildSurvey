@@ -11,6 +11,7 @@ import { getProjects, addProject, updateProject, deleteProject } from "@/lib/sto
 import { PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import SupabaseConnectionChecker from "@/components/SupabaseConnectionChecker"; // Import the new component
 
 const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -72,7 +73,10 @@ const Index = () => {
           Projets d'Inspection de Bâtiments
         </h1>
 
-        <div className="flex justify-end mb-6">
+        {/* Supabase Connection Checker */}
+        <SupabaseConnectionChecker />
+
+        <div className="flex justify-end mb-6 mt-8">
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditingProject(undefined); setIsFormOpen(true); }}>
