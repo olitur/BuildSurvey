@@ -1,6 +1,7 @@
+/** @jsxImportSource react */
 // Removed 'use client';
 
-import React from "react"; // Added this line
+// import React from "react"; // Removed as it's not needed with react-jsx runtime and pragma
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
@@ -8,7 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const Login = () => {
   return (
-    <React.Fragment>
+    <> {/* Changed from <React.Fragment> to use the shorthand fragment syntax */}
       {/* Minimal content to test JSX parsing */}
       <Auth
         supabaseClient={supabase}
@@ -27,7 +28,7 @@ const Login = () => {
         theme="light"
         redirectTo={window.location.origin + "/BuildSurvey/#/"}
       />
-    </React.Fragment>
+    </>
   );
 };
 
