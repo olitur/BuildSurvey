@@ -29,7 +29,7 @@ const Login = () => {
               },
             }}
             theme="light"
-            redirectTo={window.location.origin + "/BuildSurvey/"}
+            // redirectTo={window.location.origin + "/BuildSurvey/"} // Temporarily removed for debugging
           />
         </div>
       </div>
