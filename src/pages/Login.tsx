@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment } from "react"; // Changed to import Fragment directly
+import React from "react"; // Keep React imported for other JSX elements, but Fragment is no longer needed for <>
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
@@ -8,7 +8,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Login = () => {
   return (
-    <Fragment> {/* Using Fragment directly */}
+    <> {/* Using JSX shorthand fragment */}
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
         <div className="w-full max-w-md mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-900 dark:text-gray-50">
@@ -36,7 +36,7 @@ const Login = () => {
         </div>
         <MadeWithDyad />
       </div>
-    </Fragment>
+    </>
   );
 };
 
