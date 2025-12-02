@@ -13,8 +13,8 @@ import {
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"; // Import DialogDescription
+import { PlusCircle, ArrowLeft, Trash2, Loader2 } from "lucide-react"; // Import Loader2 for loading spinner
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,7 @@ const SpaceDetails = () => {
   const [showCustomLocationInput, setShowCustomLocationInput] = useState(false);
   const [customLocationName, setCustomLocationName] = useState("");
   const [newObservationPhotoBase64s, setNewObservationPhotoBase64s] = useState<string[]>([]);
+  const [isAddingObservation, setIsAddingObservation] = useState(false); // New loading state
 
   const fetchSpaceAndObservations = async () => {
     if (!projectId || !levelId || !spaceId) return;
@@ -84,16 +85,19 @@ const SpaceDetails = () => {
 
   const handleAddObservation = async () => {
     console.log("handleAddObservation called");
+    setIsAddingObservation(true); // Set loading state
 
     if (!project || !level || !space) {
       console.log("Validation failed: project, level, or space is null");
       toast.error("Erreur interne: Projet, niveau ou espace non chargé.");
+      setIsAddingObservation(false); // Reset loading state
       return;
     }
 
     if (!newObservationText.trim()) {
       console.log("Validation failed: newObservationText is empty");
       toast.error("Le texte de l'observation ne peut pas être vide.");
+      setIsAddingObservation(false); // Reset loading state
       return;
     }
 
@@ -102,6 +106,7 @@ const SpaceDetails = () => {
       if (!customLocationName.trim()) {
         console.log("Validation failed: customLocationName is empty");
         toast.error("Le nom de la localisation personnalisée ne peut pas être vide.");
+        setIsAddingObservation(false); // Reset loading state
         return;
       }
       actualLocation = customLocationName.trim();
@@ -111,13 +116,13 @@ const SpaceDetails = () => {
     const newObservationData: Omit<Observation, "id" | "created_at" | "user_id"> = {
       text: newObservationText.trim(),
       location_in_space: actualLocation,
-      photos: newObservationPhotoBase64s,
+      photos: newObservationPhotoBase64s, // Re-enabled photo upload
       space_id: space.id,
     };
 
     console.log("Calling addObservation with data:", newObservationData);
     const addedObservation = await addObservation(newObservationData);
-    console.log("addObservation returned:", addedObservation); // Explicit log for the return value
+    console.log("addObservation returned:", addedObservation);
 
     if (addedObservation) {
       setObservationsByLocation(prev => ({
@@ -133,8 +138,9 @@ const SpaceDetails = () => {
       toast.success("Observation ajoutée avec succès !");
     } else {
       console.error("Failed to add observation: addObservation returned null.");
-      toast.error("Échec de l'ajout de l'observation. Veuillez vérifier la console pour plus de détails."); // Explicit error toast
+      toast.error("Échec de l'ajout de l'observation. Veuillez vérifier la console pour plus de détails.");
     }
+    setIsAddingObservation(false); // Reset loading state
   };
 
   const handleDeleteObservation = async (locationKey: string, observationId: string) => {
@@ -302,8 +308,9 @@ const SpaceDetails = () => {
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)}>Annuler</Button>
-                <Button onClick={handleAddObservation} disabled={!newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
+                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} disabled={isAddingObservation}>Annuler</Button>
+                <Button onClick={handleAddObservation} disabled={isAddingObservation || !newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
+                  {isAddingObservation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Ajouter l'observation
                 </Button>
               </div>
