@@ -1,12 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react"; // Import useEffect
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Login = () => {
+  useEffect(() => {
+    const checkProviders = async () => {
+      const { data, error } = await supabase.auth.getProviders();
+      if (error) {
+        console.error("Error fetching auth providers:", error);
+      } else {
+        console.log("Enabled auth providers from Supabase client:", data.providers);
+      }
+    };
+    checkProviders();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-md mx-auto">
@@ -29,7 +41,7 @@ const Login = () => {
               },
             }}
             theme="light"
-            // redirectTo={window.location.origin + "/BuildSurvey/"} // Temporarily removed for debugging
+            // redirectTo={window.location.origin + "/BuildSurvey/"}
           />
         </div>
       </div>
