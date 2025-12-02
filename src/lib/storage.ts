@@ -361,3 +361,77 @@ export const deleteObservation = async (observationId: string): Promise<boolean>
     return false;
   }
 };
+
+export const getProjectFullData = async (projectId: string): Promise<Project | null> => {
+  const { data: projectData, error: projectError } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+
+  if (projectError || !projectData) {
+    console.error("Error fetching project for full data:", projectError);
+    toast.error("Erreur lors du chargement complet du projet.");
+    return null;
+  }
+
+  const project: Project = { ...projectData, levels: [], buildingCharacteristics: projectData.building_characteristics || "" };
+
+  const { data: levelsData, error: levelsError } = await supabase
+    .from("levels")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true });
+
+  if (levelsError) {
+    console.error("Error fetching levels for full data:", levelsError);
+    toast.error("Erreur lors du chargement des niveaux pour le projet.");
+    return project; // Return partial data if levels fail
+  }
+
+  project.levels = await Promise.all(levelsData.map(async (levelData) => {
+    const level: Level = { ...levelData, spaces: [] };
+
+    const { data: spacesData, error: spacesError } = await supabase
+      .from("spaces")
+      .select("*")
+      .eq("level_id", level.id)
+      .order("created_at", { ascending: true });
+
+    if (spacesError) {
+      console.error("Error fetching spaces for full data:", spacesError);
+      toast.error(`Erreur lors du chargement des espaces pour le niveau ${level.name}.`);
+      return level; // Return partial data if spaces fail
+    }
+
+    level.spaces = await Promise.all(spacesData.map(async (spaceData) => {
+      const space: SpaceRoom = { ...spaceData, observations: {} };
+
+      const { data: observationsData, error: observationsError } = await supabase
+        .from("observations")
+        .select("*")
+        .eq("space_id", space.id)
+        .order("created_at", { ascending: true });
+
+      if (observationsError) {
+        console.error("Error fetching observations for full data:", observationsError);
+        toast.error(`Erreur lors du chargement des observations pour l'espace ${space.name}.`);
+        return space; // Return partial data if observations fail
+      }
+
+      // Group observations by location_in_space
+      observationsData.forEach(obs => {
+        if (!space.observations[obs.location_in_space]) {
+          space.observations[obs.location_in_space] = [];
+        }
+        space.observations[obs.location_in_space].push(obs);
+      });
+
+      return space;
+    }));
+
+    return level;
+  }));
+
+  return project;
+};

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { getProjects, updateProject, getLevelsForProject, addLevel, deleteLevel } from "@/lib/storage"; // Import new storage functions
+import { getProjects, updateProject, getLevelsForProject, addLevel, deleteLevel, getProjectFullData } from "@/lib/storage"; // Import new storage functions
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,14 +70,14 @@ const ProjectDetails = () => {
     }
   };
 
-  const handleDownloadProjectData = () => {
-    // Fetch the latest project data directly from local storage
-    // NOTE: This currently downloads only the project and its levels, not nested spaces/observations.
-    // For a full download, you would need to fetch all nested data from Supabase.
-    const projectToDownload = {
-      ...project,
-      levels: levels, // Include fetched levels
-    };
+  const handleDownloadProjectData = async () => {
+    if (!projectId) {
+      toast.error("ID du projet manquant pour le téléchargement.");
+      return;
+    }
+
+    toast.info("Préparation des données du projet pour le téléchargement...");
+    const projectToDownload = await getProjectFullData(projectId); // Use the new function
 
     if (!projectToDownload) {
       toast.error("Aucune donnée de projet à télécharger ou projet introuvable.");

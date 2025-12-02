@@ -123,19 +123,16 @@ const SpaceDetails = () => {
     console.log("Calling addObservation with data:", newObservationData);
     const addedObservation = await addObservation(newObservationData);
     console.log("addObservation returned:", addedObservation);
-
     if (addedObservation) {
-      setObservationsByLocation(prev => ({
-        ...prev,
-        [actualLocation]: [...(prev[actualLocation] || []), addedObservation],
-      }));
+      console.log("Photos in addedObservation:", addedObservation.photos); // Add this log
+      toast.success("Observation ajoutée avec succès !");
       setNewObservationText("");
       setNewObservationLocation("floor");
       setNewObservationPhotoBase64s([]);
       setShowCustomLocationInput(false);
       setCustomLocationName("");
       setIsObservationFormOpen(false);
-      toast.success("Observation ajoutée avec succès !");
+      await fetchSpaceAndObservations(); // Force re-fetch all observations
     } else {
       console.error("Failed to add observation: addObservation returned null.");
       toast.error("Échec de l'ajout de l'observation. Veuillez vérifier la console pour plus de détails.");
