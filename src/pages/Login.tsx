@@ -1,6 +1,6 @@
 // Removed 'use client';
 
-import React from "react";
+import React from "react"; // Added this line
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
