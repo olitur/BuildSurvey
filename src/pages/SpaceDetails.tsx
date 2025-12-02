@@ -9,8 +9,7 @@ import {
   getObservationsForSpace,
   addObservation,
   deleteObservation,
-  uploadImageToSupabase,
-  deleteImageFromSupabase,
+  // Removed uploadImageToSupabase, deleteImageFromSupabase
 } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { v4 as uuidv4 } from "uuid";
+// import { v4 as uuidv4 } from "uuid"; // Not needed for image upload anymore
 import { toast } from "sonner";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
@@ -38,9 +37,8 @@ const SpaceDetails = () => {
   const [newObservationLocation, setNewObservationLocation] = useState<string>("floor");
   const [showCustomLocationInput, setShowCustomLocationInput] = useState(false);
   const [customLocationName, setCustomLocationName] = useState("");
-  const [newObservationFiles, setNewObservationFiles] = useState<File[]>([]); // Store File objects
-  const [newObservationPhotoPreviews, setNewObservationPhotoPreviews] = useState<string[]>([]); // Store base64 for previews
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [newObservationPhotoBase64s, setNewObservationPhotoBase64s] = useState<string[]>([]); // Store Base64 strings directly
+  // Removed isPhotoUploading state
 
   const fetchSpaceAndObservations = async () => {
     if (!projectId || !levelId || !spaceId) return;
@@ -92,10 +90,7 @@ const SpaceDetails = () => {
       toast.error("Le texte de l'observation ne peut pas être vide.");
       return;
     }
-    if (isPhotoUploading) {
-      toast.error("Veuillez attendre la fin du chargement des photos.");
-      return;
-    }
+    // Removed isPhotoUploading check
 
     let actualLocation = newObservationLocation;
     if (showCustomLocationInput) {
@@ -106,24 +101,11 @@ const SpaceDetails = () => {
       actualLocation = customLocationName.trim();
     }
 
-    setIsPhotoUploading(true);
-    const uploadedPhotoUrls: string[] = [];
-    for (const file of newObservationFiles) {
-      const url = await uploadImageToSupabase(file, project.id, level.id, space.id);
-      if (url) {
-        uploadedPhotoUrls.push(url);
-      } else {
-        toast.error(`Échec du chargement de l'image ${file.name}.`);
-        setIsPhotoUploading(false);
-        return;
-      }
-    }
-    setIsPhotoUploading(false);
-
+    // Photos are already in Base64 format in newObservationPhotoBase64s
     const newObservationData: Omit<Observation, "id" | "created_at"> = {
       text: newObservationText.trim(),
       location_in_space: actualLocation,
-      photos: uploadedPhotoUrls,
+      photos: newObservationPhotoBase64s, // Use Base64 strings directly
       space_id: space.id,
     };
 
@@ -135,8 +117,7 @@ const SpaceDetails = () => {
       }));
       setNewObservationText("");
       setNewObservationLocation("floor");
-      setNewObservationFiles([]);
-      setNewObservationPhotoPreviews([]);
+      setNewObservationPhotoBase64s([]); // Clear Base64 strings
       setShowCustomLocationInput(false);
       setCustomLocationName("");
       setIsObservationFormOpen(false);
@@ -145,15 +126,8 @@ const SpaceDetails = () => {
 
   const handleDeleteObservation = async (locationKey: string, observationId: string) => {
     if (!project || !level || !space) return;
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation et ses photos ?")) {
-      const observationToDelete = observationsByLocation[locationKey]?.find(obs => obs.id === observationId);
-      if (observationToDelete) {
-        // Delete photos from Supabase Storage first
-        for (const photoUrl of observationToDelete.photos) {
-          await deleteImageFromSupabase(photoUrl);
-        }
-      }
-
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation ?")) {
+      // No need to delete photos from Supabase Storage as they are stored in the DB
       const success = await deleteObservation(observationId);
       if (success) {
         setObservationsByLocation(prev => ({
@@ -168,13 +142,11 @@ const SpaceDetails = () => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const newFilesArray = Array.from(files);
-      setNewObservationFiles((prev) => [...prev, ...newFilesArray]);
-
       const photoPromises: Promise<string>[] = newFilesArray.map((file) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => {
-            resolve(reader.result as string);
+            resolve(reader.result as string); // Read as Data URL (Base64)
           };
           reader.readAsDataURL(file);
         });
@@ -182,7 +154,7 @@ const SpaceDetails = () => {
 
       Promise.all(photoPromises)
         .then((base64Strings) => {
-          setNewObservationPhotoPreviews((prev) => [...prev, ...base64Strings]);
+          setNewObservationPhotoBase64s((prev) => [...prev, ...base64Strings]);
           toast.success(`${base64Strings.length} photo(s) sélectionnée(s).`);
         })
         .catch((error) => {
@@ -231,8 +203,7 @@ const SpaceDetails = () => {
               <Button onClick={() => {
                 setNewObservationText("");
                 setNewObservationLocation("floor");
-                setNewObservationFiles([]);
-                setNewObservationPhotoPreviews([]);
+                setNewObservationPhotoBase64s([]); // Clear Base64 strings
                 setShowCustomLocationInput(false);
                 setCustomLocationName("");
                 setIsObservationFormOpen(true);
@@ -308,21 +279,19 @@ const SpaceDetails = () => {
                     capture="environment"
                     onChange={handlePhotoUpload}
                     className="col-span-3"
-                    disabled={isPhotoUploading}
+                    // Removed disabled={isPhotoUploading}
                   />
                 </div>
-                {isPhotoUploading && (
-                  <p className="col-span-4 text-center text-sm text-blue-500">Chargement des photos...</p>
-                )}
+                {/* Removed isPhotoUploading message */}
                 <div className="col-span-4 flex flex-wrap gap-2 justify-end">
-                  {newObservationPhotoPreviews.map((photo, index) => (
+                  {newObservationPhotoBase64s.map((photo, index) => (
                     <img key={index} src={photo} alt={`Observation ${index + 1}`} className="w-20 h-20 object-cover rounded-md" />
                   ))}
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} disabled={isPhotoUploading}>Annuler</Button>
-                <Button onClick={handleAddObservation} disabled={isPhotoUploading || !newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
+                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} /* Removed disabled={isPhotoUploading} */>Annuler</Button>
+                <Button onClick={handleAddObservation} disabled={!newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
                   Ajouter l'observation
                 </Button>
               </div>

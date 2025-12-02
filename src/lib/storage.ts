@@ -3,7 +3,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid"; // For generating unique IDs for images
+// import { v4 as uuidv4 } from "uuid"; // Not needed for image upload anymore
 
 // Helper to get current user ID
 const getCurrentUserId = async (): Promise<string | null> => {
@@ -206,7 +206,7 @@ export const addObservation = async (observation: Omit<Observation, "id" | "crea
   const { data, error } = await supabase.from("observations").insert({
     text: observation.text,
     location_in_space: observation.location_in_space,
-    photos: observation.photos,
+    photos: observation.photos, // photos are now Base64 strings
     space_id: observation.space_id,
     user_id: userId,
   }).select().single();
@@ -242,57 +242,6 @@ export const deleteObservation = async (observationId: string): Promise<boolean>
   return true;
 };
 
-// --- Image Upload to Supabase Storage ---
-
-export const uploadImageToSupabase = async (file: File, projectId: string, levelId: string, spaceId: string): Promise<string | null> => {
-  const fileExtension = file.name.split(".").pop();
-  const fileName = `${uuidv4()}.${fileExtension}`;
-  const filePath = `${projectId}/${levelId}/${spaceId}/${fileName}`;
-
-  const { data, error } = await supabase.storage
-    .from("project-images") // Make sure this bucket exists in Supabase Storage
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (error) {
-    console.error("Error uploading image:", error);
-    toast.error("Erreur lors du chargement de l'image.");
-    return null;
-  }
-
-  // Get public URL
-  const { data: publicUrlData } = supabase.storage
-    .from("project-images")
-    .getPublicUrl(filePath);
-
-  if (!publicUrlData || !publicUrlData.publicUrl) {
-    console.error("Error getting public URL for image.");
-    toast.error("Erreur lors de l'obtention de l'URL publique de l'image.");
-    return null;
-  }
-
-  return publicUrlData.publicUrl;
-};
-
-export const deleteImageFromSupabase = async (imageUrl: string): Promise<boolean> => {
-  // Extract the path from the public URL
-  const urlParts = imageUrl.split('/public/project-images/');
-  if (urlParts.length < 2) {
-    console.error("Invalid image URL for deletion:", imageUrl);
-    return false;
-  }
-  const filePath = urlParts[1];
-
-  const { error } = await supabase.storage
-    .from("project-images")
-    .remove([filePath]);
-
-  if (error) {
-    console.error("Error deleting image from storage:", error);
-    toast.error("Erreur lors de la suppression de l'image du stockage.");
-    return false;
-  }
-  return true;
-};
+// Removed image upload/delete functions as images are now stored as Base64 in the DB
+// export const uploadImageToSupabase = async (...) => { ... };
+// export const deleteImageFromSupabase = async (...) => { ... };
