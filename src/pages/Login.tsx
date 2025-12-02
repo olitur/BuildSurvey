@@ -16,7 +16,7 @@ const Login = () => {
         <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <Auth
             supabaseClient={supabase}
-            providers={[]} // Vous pouvez ajouter des fournisseurs comme 'google', 'github' ici
+            providers={['github']} // J'ai ajouté 'github' ici pour activer le bouton
             appearance={{
               theme: ThemeSupa,
               variables: {
@@ -28,8 +28,8 @@ const Login = () => {
                 },
               },
             }}
-            theme="light" // Utilise le thème clair par défaut, ou 'dark' si votre app est en mode sombre
-            redirectTo={window.location.origin + "/BuildSurvey/"} // Redirige vers la racine de votre application après connexion
+            theme="light"
+            redirectTo={window.location.origin + "/BuildSurvey/"}
           />
         </div>
       </div>
