@@ -1,23 +1,14 @@
 "use client";
 
-import React, { useEffect } from "react"; // Import useEffect
+import React from "react"; // Removed useEffect as it's no longer needed
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Login = () => {
-  useEffect(() => {
-    const checkProviders = async () => {
-      const { data, error } = await supabase.auth.getProviders();
-      if (error) {
-        console.error("Error fetching auth providers:", error);
-      } else {
-        console.log("Enabled auth providers from Supabase client:", data.providers);
-      }
-    };
-    checkProviders();
-  }, []);
+  // The useEffect block that caused the error has been removed.
+  // The Auth component automatically handles fetching enabled providers.
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
