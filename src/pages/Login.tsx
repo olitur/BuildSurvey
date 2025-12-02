@@ -12,7 +12,7 @@ const Login = () => {
       {/* Minimal content to test JSX parsing */}
       <Auth
         supabaseClient={supabase}
-        providers={['github']}
+        providers={[]} {/* Changed to empty array to enable email/password */}
         appearance={{
           theme: ThemeSupa,
           variables: {

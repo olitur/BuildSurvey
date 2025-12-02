@@ -5,6 +5,16 @@ import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid"; // For generating unique IDs for images
 
+// Helper to get current user ID
+const getCurrentUserId = async (): Promise<string | null> => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error("Error getting user:", error);
+    return null;
+  }
+  return user?.id || null;
+};
+
 // --- Project Management ---
 
 export const getProjects = async (): Promise<Project[]> => {
@@ -16,13 +26,19 @@ export const getProjects = async (): Promise<Project[]> => {
   }
   // For now, we'll return projects without nested levels/spaces/observations
   // These will be fetched on demand in their respective detail pages.
-  return data.map(p => ({ ...p, levels: [], buildingCharacteristics: p.buildingCharacteristics || "" }));
+  return data.map(p => ({ ...p, levels: [], buildingCharacteristics: p.building_characteristics || "" }));
 };
 
-export const addProject = async (project: Omit<Project, "id" | "levels" | "created_at">): Promise<Project | null> => {
+export const addProject = async (project: Omit<Project, "id" | "levels" | "created_at" | "user_id">): Promise<Project | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer un projet.");
+    return null;
+  }
   const { data, error } = await supabase.from("projects").insert({
     location: project.location,
-    buildingCharacteristics: project.buildingCharacteristics,
+    building_characteristics: project.buildingCharacteristics, // Ensure column name matches DB
+    user_id: userId,
   }).select().single();
   if (error) {
     console.error("Error adding project:", error);
@@ -30,14 +46,14 @@ export const addProject = async (project: Omit<Project, "id" | "levels" | "creat
     return null;
   }
   toast.success("Projet créé avec succès !");
-  return { ...data, levels: [] };
+  return { ...data, levels: [], buildingCharacteristics: data.building_characteristics || "" };
 };
 
 export const updateProject = async (updatedProject: Omit<Project, "levels" | "created_at">): Promise<Project | null> => {
   const { id, ...fieldsToUpdate } = updatedProject;
   const { data, error } = await supabase.from("projects").update({
     location: fieldsToUpdate.location,
-    buildingCharacteristics: fieldsToUpdate.buildingCharacteristics,
+    building_characteristics: fieldsToUpdate.buildingCharacteristics, // Ensure column name matches DB
   }).eq("id", id).select().single();
   if (error) {
     console.error("Error updating project:", error);
@@ -45,7 +61,7 @@ export const updateProject = async (updatedProject: Omit<Project, "levels" | "cr
     return null;
   }
   toast.success("Projet mis à jour avec succès !");
-  return { ...data, levels: [] };
+  return { ...data, levels: [], buildingCharacteristics: data.building_characteristics || "" };
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
@@ -71,8 +87,17 @@ export const getLevelsForProject = async (projectId: string): Promise<Level[]> =
   return data.map(l => ({ ...l, spaces: [] }));
 };
 
-export const addLevel = async (level: Omit<Level, "id" | "spaces" | "created_at">): Promise<Level | null> => {
-  const { data, error } = await supabase.from("levels").insert(level).select().single();
+export const addLevel = async (level: Omit<Level, "id" | "spaces" | "created_at" | "user_id">): Promise<Level | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer un niveau.");
+    return null;
+  }
+  const { data, error } = await supabase.from("levels").insert({
+    name: level.name,
+    project_id: level.project_id,
+    user_id: userId,
+  }).select().single();
   if (error) {
     console.error("Error adding level:", error);
     toast.error("Erreur lors de la création du niveau.");
@@ -117,8 +142,17 @@ export const getSpacesForLevel = async (levelId: string): Promise<SpaceRoom[]> =
   return data.map(s => ({ ...s, observations: {} })); // Initialize observations as an empty object
 };
 
-export const addSpace = async (space: Omit<SpaceRoom, "id" | "observations" | "created_at">): Promise<SpaceRoom | null> => {
-  const { data, error } = await supabase.from("spaces").insert(space).select().single();
+export const addSpace = async (space: Omit<SpaceRoom, "id" | "observations" | "created_at" | "user_id">): Promise<SpaceRoom | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer un espace.");
+    return null;
+  }
+  const { data, error } = await supabase.from("spaces").insert({
+    name: space.name,
+    level_id: space.level_id,
+    user_id: userId,
+  }).select().single();
   if (error) {
     console.error("Error adding space:", error);
     toast.error("Erreur lors de la création de l'espace.");
@@ -163,8 +197,19 @@ export const getObservationsForSpace = async (spaceId: string): Promise<Observat
   return data;
 };
 
-export const addObservation = async (observation: Omit<Observation, "id" | "created_at">): Promise<Observation | null> => {
-  const { data, error } = await supabase.from("observations").insert(observation).select().single();
+export const addObservation = async (observation: Omit<Observation, "id" | "created_at" | "user_id">): Promise<Observation | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer une observation.");
+    return null;
+  }
+  const { data, error } = await supabase.from("observations").insert({
+    text: observation.text,
+    location_in_space: observation.location_in_space,
+    photos: observation.photos,
+    space_id: observation.space_id,
+    user_id: userId,
+  }).select().single();
   if (error) {
     console.error("Error adding observation:", error);
     toast.error("Erreur lors de la création de l'observation.");
