@@ -1,15 +1,12 @@
 "use client";
 
-import React from "react"; // Removed useEffect as it's no longer needed
+import React from "react";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Login = () => {
-  // The useEffect block that caused the error has been removed.
-  // The Auth component automatically handles fetching enabled providers.
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-md mx-auto">
@@ -19,7 +16,7 @@ const Login = () => {
         <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <Auth
             supabaseClient={supabase}
-            providers={['github']}
+            // Removed providers={['github']} to allow auto-detection
             appearance={{
               theme: ThemeSupa,
               variables: {
