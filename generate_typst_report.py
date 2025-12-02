@@ -49,17 +49,24 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
 
                     # Observations
                     has_observations = False
-                    # Iterate over all observation locations dynamically
-                    for location_key, observations in space['observations'].items():
-                        # Map predefined keys to French names, otherwise capitalize the key
-                        location_name = {
-                            "floor": "Sol",
-                            "wall": "Mur",
-                            "ceiling": "Plafond"
-                        }.get(location_key, location_key.capitalize())
-
-                        if observations: # Only process if there are observations for this key
+                    
+                    # Define standard locations and their French names
+                    standard_locations_order = ["floor", "wall", "ceiling"]
+                    location_display_names = {
+                        "floor": "Sol",
+                        "wall": "Mur",
+                        "ceiling": "Plafond"
+                    }
+                    
+                    # Keep track of all unique locations found in this space's observations
+                    all_space_locations = set(space['observations'].keys())
+                    
+                    # Process standard locations first, in a defined order
+                    for location_key in standard_locations_order:
+                        observations = space['observations'].get(location_key, []) # Safely get observations, default to empty list
+                        if observations:
                             has_observations = True
+                            location_name = location_display_names.get(location_key, location_key.capitalize())
                             typst_content.append(f"==== Observations du {location_name}\n")
                             typst_content.append("#list[\n")
                             for obs in observations:
@@ -67,14 +74,12 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
                                 if obs['photos']:
                                     typst_content.append("    #h(0.5em)\n")
                                     for i, photo_base64 in enumerate(obs['photos']):
-                                        # Extraire les données de l'image et les enregistrer
                                         try:
-                                            # Format de l'URL de données : data:image/png;base64,iVBORw0...
                                             match = re.match(r"data:image/(\w+);base64,(.*)", photo_base64)
                                             if match:
                                                 ext = match.group(1)
                                                 encoded = match.group(2)
-                                                if ext == 'jpeg': ext = 'jpg' # Conversion courante
+                                                if ext == 'jpeg': ext = 'jpg'
                                                 
                                                 image_data = base64.b64decode(encoded)
                                                 
@@ -84,7 +89,6 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
                                                 with open(image_path, 'wb') as img_file:
                                                     img_file.write(image_data)
                                                 
-                                                # Référencer l'image dans Typst, relative au fichier Typst de sortie
                                                 typst_content.append(f"    #image(\"images/{image_filename}\", width: 50%)\n")
                                                 typst_content.append("    #h(0.5em)\n")
                                             else:
@@ -92,9 +96,47 @@ def generate_typst_report(json_file_path, output_dir="typst_report"):
                                         except Exception as e:
                                             typst_content.append(f"    // Erreur lors de l'extraction de l'image pour l'observation {obs['id']}: {e}\n")
                                             typst_content.append(f"    // Données Base64 (pour débogage): {photo_base64[:50]}...\n")
-                            typst_content.append("]\n") # Fermer la liste
+                            typst_content.append("]\n")
                             typst_content.append("\n#h(1em)\n")
-
+                        
+                    # Process any custom locations that are not standard
+                    for location_key in sorted(all_space_locations - set(standard_locations_order)):
+                        observations = space['observations'].get(location_key, [])
+                        if observations:
+                            has_observations = True
+                            location_name = location_key.capitalize() # Custom location, just capitalize
+                            typst_content.append(f"==== Observations de {location_name}\n")
+                            typst_content.append("#list[\n")
+                            for obs in observations:
+                                typst_content.append(f"  * {obs['text']}\n")
+                                if obs['photos']:
+                                    typst_content.append("    #h(0.5em)\n")
+                                    for i, photo_base64 in enumerate(obs['photos']):
+                                        try:
+                                            match = re.match(r"data:image/(\w+);base64,(.*)", photo_base64)
+                                            if match:
+                                                ext = match.group(1)
+                                                encoded = match.group(2)
+                                                if ext == 'jpeg': ext = 'jpg'
+                                                
+                                                image_data = base64.b64decode(encoded)
+                                                
+                                                image_filename = f"obs_{obs['id']}_{i}.{ext}"
+                                                image_path = os.path.join(images_dir, image_filename)
+                                                
+                                                with open(image_path, 'wb') as img_file:
+                                                    img_file.write(image_data)
+                                                
+                                                typst_content.append(f"    #image(\"images/{image_filename}\", width: 50%)\n")
+                                                typst_content.append("    #h(0.5em)\n")
+                                            else:
+                                                typst_content.append(f"    // Format d'image base64 non reconnu pour l'observation {obs['id']}.\n")
+                                        except Exception as e:
+                                            typst_content.append(f"    // Erreur lors de l'extraction de l'image pour l'observation {obs['id']}: {e}\n")
+                                            typst_content.append(f"    // Données Base64 (pour débogage): {photo_base64[:50]}...\n")
+                                typst_content.append("]\n")
+                                typst_content.append("\n#h(1em)\n")
+                                
                     if not has_observations:
                         typst_content.append("Aucune observation enregistrée pour cet espace.\n")
                     typst_content.append("\n#pagebreak()\n") # Saut de page après chaque espace pour une meilleure lisibilité
