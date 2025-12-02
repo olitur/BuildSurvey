@@ -14,7 +14,7 @@ import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, ArrowLeft, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"; // Import DialogDescription
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -117,7 +117,7 @@ const SpaceDetails = () => {
 
     console.log("Calling addObservation with data:", newObservationData);
     const addedObservation = await addObservation(newObservationData);
-    console.log("addObservation returned:", addedObservation);
+    console.log("addObservation returned:", addedObservation); // Explicit log for the return value
 
     if (addedObservation) {
       setObservationsByLocation(prev => ({
@@ -130,10 +130,10 @@ const SpaceDetails = () => {
       setShowCustomLocationInput(false);
       setCustomLocationName("");
       setIsObservationFormOpen(false);
-      toast.success("Observation ajoutée avec succès !"); // Added success toast
+      toast.success("Observation ajoutée avec succès !");
     } else {
-      console.error("Failed to add observation, addObservation returned null.");
-      // The addObservation function already shows a toast.error, so no need to duplicate here unless specific to UI.
+      console.error("Failed to add observation: addObservation returned null.");
+      toast.error("Échec de l'ajout de l'observation. Veuillez vérifier la console pour plus de détails."); // Explicit error toast
     }
   };
 
@@ -225,6 +225,9 @@ const SpaceDetails = () => {
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Ajouter une nouvelle observation</DialogTitle>
+                <DialogDescription>
+                  Remplissez les détails de l'observation et ajoutez des photos.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
