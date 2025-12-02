@@ -16,7 +16,7 @@ const Login = () => {
         <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <Auth
             supabaseClient={supabase}
-            providers={['github']} {/* Correction ici : ajout de 'github' */}
+            providers={['github']}
             appearance={{
               theme: ThemeSupa,
               variables: {
