@@ -1,6 +1,6 @@
 "use client";
 
-// Removed 'import React from "react";' as it's not needed with automatic JSX runtime and shorthand fragments.
+import React from "react"; // Réintroduit l'importation explicite de React
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
@@ -8,7 +8,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Login = () => {
   return (
-    <> {/* Using JSX shorthand fragment */}
+    <React.Fragment> {/* Utilise React.Fragment explicitement */}
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
         <div className="w-full max-w-md mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-900 dark:text-gray-50">
@@ -36,7 +36,7 @@ const Login = () => {
         </div>
         <MadeWithDyad />
       </div>
-    </>
+    </React.Fragment>
   );
 };
 
