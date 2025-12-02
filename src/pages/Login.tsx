@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react"; // Keep React imported for other JSX elements, but Fragment is no longer needed for <>
+// Removed 'import React from "react";' as it's not needed with automatic JSX runtime and shorthand fragments.
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
