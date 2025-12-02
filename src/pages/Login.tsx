@@ -1,19 +1,16 @@
-/** @jsxImportSource react */
 // Removed 'use client';
 
-// import React from "react"; // Removed as it's not needed with react-jsx runtime and pragma
+import React from "react"; // Re-added for broader compatibility
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/lib/supabaseClient";
-// Removed MadeWithDyad and other UI elements for minimal testing
 
 const Login = () => {
   return (
-    <> {/* Changed from <React.Fragment> to use the shorthand fragment syntax */}
-      {/* Minimal content to test JSX parsing */}
+    <div> {/* Changed from <> to <div> to avoid fragment-specific parsing issues */}
       <Auth
         supabaseClient={supabase}
-        providers={[]} {/* Changed to empty array to enable email/password */}
+        providers={[]}
         appearance={{
           theme: ThemeSupa,
           variables: {
@@ -28,7 +25,7 @@ const Login = () => {
         theme="light"
         redirectTo={window.location.origin + "/BuildSurvey/#/"}
       />
-    </>
+    </div>
   );
 };
 
