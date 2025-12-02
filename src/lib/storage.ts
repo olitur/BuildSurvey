@@ -1,9 +1,92 @@
-"use client";
+// Removed 'use client';
 
 import { supabase } from "@/lib/supabaseClient";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid"; // For generating unique IDs for images
+import { v4 as uuidv4 } from "uuid"; // Used for generating unique filenames
+
+// Helper to get current user ID
+const getCurrentUserId = async (): Promise<string | null> => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error("Error getting user:", error);
+    return null;
+  }
+  return user?.id || null;
+};
+
+// --- Image Storage Management ---
+
+const uploadImageToSupabaseStorage = async (base64String: string, userId: string): Promise<string | null> => {
+  try {
+    // Extract file type from base64 string (e.g., data:image/png;base64,...)
+    const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      console.error("Invalid base64 string format.");
+      toast.error("Format d'image invalide.");
+      return null;
+    }
+
+    const contentType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const fileExtension = contentType.split('/')[1];
+    const fileName = `${userId}/${uuidv4()}.${fileExtension}`; // Store under user's folder
+
+    const { data, error } = await supabase.storage
+      .from('observation-photos')
+      .upload(fileName, buffer, {
+        contentType: contentType,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Error uploading image to Supabase Storage:", error);
+      toast.error("Erreur lors du téléchargement de l'image.");
+      return null;
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('observation-photos')
+      .getPublicUrl(fileName);
+
+    return publicUrlData.publicUrl;
+
+  } catch (e: any) {
+    console.error("Unhandled exception during image upload:", e);
+    toast.error(`Erreur inattendue lors du téléchargement de l'image: ${e.message || e}`);
+    return null;
+  }
+};
+
+const deleteImageFromSupabaseStorage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    // Extract the path from the public URL
+    const urlParts = imageUrl.split('/public/observation-photos/');
+    if (urlParts.length < 2) {
+      console.error("Invalid image URL format for deletion:", imageUrl);
+      return false;
+    }
+    const filePath = urlParts[1];
+
+    const { error } = await supabase.storage
+      .from('observation-photos')
+      .remove([filePath]);
+
+    if (error) {
+      console.error("Error deleting image from Supabase Storage:", error);
+      toast.error("Erreur lors de la suppression de l'image.");
+      return false;
+    }
+    return true;
+  } catch (e: any) {
+    console.error("Unhandled exception during image deletion:", e);
+    toast.error(`Erreur inattendue lors de la suppression de l'image: ${e.message || e}`);
+    return false;
+  }
+};
 
 // --- Project Management ---
 
@@ -14,15 +97,19 @@ export const getProjects = async (): Promise<Project[]> => {
     toast.error("Erreur lors du chargement des projets.");
     return [];
   }
-  // For now, we'll return projects without nested levels/spaces/observations
-  // These will be fetched on demand in their respective detail pages.
-  return data.map(p => ({ ...p, levels: [], buildingCharacteristics: p.buildingCharacteristics || "" }));
+  return data.map(p => ({ ...p, levels: [], buildingCharacteristics: p.building_characteristics || "" }));
 };
 
-export const addProject = async (project: Omit<Project, "id" | "levels" | "created_at">): Promise<Project | null> => {
+export const addProject = async (project: Omit<Project, "id" | "levels" | "created_at" | "user_id">): Promise<Project | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer un projet.");
+    return null;
+  }
   const { data, error } = await supabase.from("projects").insert({
     location: project.location,
-    buildingCharacteristics: project.buildingCharacteristics,
+    building_characteristics: project.buildingCharacteristics,
+    user_id: userId,
   }).select().single();
   if (error) {
     console.error("Error adding project:", error);
@@ -30,14 +117,14 @@ export const addProject = async (project: Omit<Project, "id" | "levels" | "creat
     return null;
   }
   toast.success("Projet créé avec succès !");
-  return { ...data, levels: [] };
+  return { ...data, levels: [], buildingCharacteristics: data.building_characteristics || "" };
 };
 
 export const updateProject = async (updatedProject: Omit<Project, "levels" | "created_at">): Promise<Project | null> => {
   const { id, ...fieldsToUpdate } = updatedProject;
   const { data, error } = await supabase.from("projects").update({
     location: fieldsToUpdate.location,
-    buildingCharacteristics: fieldsToUpdate.buildingCharacteristics,
+    building_characteristics: fieldsToUpdate.buildingCharacteristics,
   }).eq("id", id).select().single();
   if (error) {
     console.error("Error updating project:", error);
@@ -45,7 +132,7 @@ export const updateProject = async (updatedProject: Omit<Project, "levels" | "cr
     return null;
   }
   toast.success("Projet mis à jour avec succès !");
-  return { ...data, levels: [] };
+  return { ...data, levels: [], buildingCharacteristics: data.building_characteristics || "" };
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
@@ -71,8 +158,17 @@ export const getLevelsForProject = async (projectId: string): Promise<Level[]> =
   return data.map(l => ({ ...l, spaces: [] }));
 };
 
-export const addLevel = async (level: Omit<Level, "id" | "spaces" | "created_at">): Promise<Level | null> => {
-  const { data, error } = await supabase.from("levels").insert(level).select().single();
+export const addLevel = async (level: Omit<Level, "id" | "spaces" | "created_at" | "user_id">): Promise<Level | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer un niveau.");
+    return null;
+  }
+  const { data, error } = await supabase.from("levels").insert({
+    name: level.name,
+    project_id: level.project_id,
+    user_id: userId,
+  }).select().single();
   if (error) {
     console.error("Error adding level:", error);
     toast.error("Erreur lors de la création du niveau.");
@@ -114,18 +210,27 @@ export const getSpacesForLevel = async (levelId: string): Promise<SpaceRoom[]> =
     toast.error("Erreur lors du chargement des espaces.");
     return [];
   }
-  return data.map(s => ({ ...s, observations: {} })); // Initialize observations as an empty object
+  return data.map(s => ({ ...s, observations: {} }));
 };
 
-export const addSpace = async (space: Omit<SpaceRoom, "id" | "observations" | "created_at">): Promise<SpaceRoom | null> => {
-  const { data, error } = await supabase.from("spaces").insert(space).select().single();
+export const addSpace = async (space: Omit<SpaceRoom, "id" | "observations" | "created_at" | "user_id">): Promise<SpaceRoom | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer un espace.");
+    return null;
+  }
+  const { data, error } = await supabase.from("spaces").insert({
+    name: space.name,
+    level_id: space.level_id,
+    user_id: userId,
+  }).select().single();
   if (error) {
     console.error("Error adding space:", error);
     toast.error("Erreur lors de la création de l'espace.");
     return null;
   }
   toast.success(`Espace "${data.name}" ajouté.`);
-  return { ...data, observations: {} }; // Return with empty observations object
+  return { ...data, observations: {} };
 };
 
 export const updateSpace = async (updatedSpace: Omit<SpaceRoom, "observations" | "created_at">): Promise<SpaceRoom | null> => {
@@ -137,7 +242,7 @@ export const updateSpace = async (updatedSpace: Omit<SpaceRoom, "observations" |
     return null;
   }
   toast.success("Espace mis à jour avec succès !");
-  return { ...data, observations: {} }; // Return with empty observations object
+  return { ...data, observations: {} };
 };
 
 export const deleteSpace = async (spaceId: string): Promise<boolean> => {
@@ -163,15 +268,48 @@ export const getObservationsForSpace = async (spaceId: string): Promise<Observat
   return data;
 };
 
-export const addObservation = async (observation: Omit<Observation, "id" | "created_at">): Promise<Observation | null> => {
-  const { data, error } = await supabase.from("observations").insert(observation).select().single();
-  if (error) {
-    console.error("Error adding observation:", error);
-    toast.error("Erreur lors de la création de l'observation.");
+export const addObservation = async (observation: Omit<Observation, "id" | "created_at" | "user_id">): Promise<Observation | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast.error("Vous devez être connecté pour créer une observation.");
     return null;
   }
-  toast.success("Observation ajoutée.");
-  return data;
+  try {
+    const uploadedPhotoUrls: string[] = [];
+    for (const base64Photo of observation.photos) {
+      const url = await uploadImageToSupabaseStorage(base64Photo, userId);
+      if (url) {
+        uploadedPhotoUrls.push(url);
+      } else {
+        // If any photo upload fails, we might want to stop or log a warning
+        console.warn("Failed to upload one or more photos for observation.");
+        // Decide if you want to proceed with the observation without these photos or fail entirely
+      }
+    }
+
+    const { data, error } = await supabase.from("observations").insert({
+      text: observation.text,
+      location_in_space: observation.location_in_space,
+      photos: uploadedPhotoUrls, // Store URLs instead of base64
+      space_id: observation.space_id,
+      user_id: userId,
+    }).select().single();
+    if (error) {
+      console.error("Error adding observation:", error);
+      toast.error("Erreur lors de la création de l'observation.");
+      // If observation insertion fails, try to delete uploaded photos
+      for (const url of uploadedPhotoUrls) {
+        await deleteImageFromSupabaseStorage(url);
+      }
+      return null;
+    }
+    toast.success("Observation ajoutée.");
+    return data;
+  } catch (e: any) {
+    console.error("Unhandled exception adding observation:", e);
+    toast.error(`Erreur inattendue lors de l'ajout de l'observation: ${e.message || e}`);
+    return null;
+  }
 };
 
 export const updateObservation = async (updatedObservation: Omit<Observation, "created_at">): Promise<Observation | null> => {
@@ -187,67 +325,113 @@ export const updateObservation = async (updatedObservation: Omit<Observation, "c
 };
 
 export const deleteObservation = async (observationId: string): Promise<boolean> => {
-  const { error } = await supabase.from("observations").delete().eq("id", observationId);
-  if (error) {
-    console.error("Error deleting observation:", error);
-    toast.error("Erreur lors de la suppression de l'observation.");
+  try {
+    // First, fetch the observation to get photo URLs
+    const { data: observationData, error: fetchError } = await supabase
+      .from("observations")
+      .select("photos")
+      .eq("id", observationId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching observation for photo deletion:", fetchError);
+      toast.error("Erreur lors de la récupération de l'observation pour la suppression des photos.");
+      return false;
+    }
+
+    // Delete photos from storage
+    if (observationData && observationData.photos && observationData.photos.length > 0) {
+      for (const photoUrl of observationData.photos) {
+        await deleteImageFromSupabaseStorage(photoUrl);
+      }
+    }
+
+    // Then, delete the observation record
+    const { error: deleteError } = await supabase.from("observations").delete().eq("id", observationId);
+    if (deleteError) {
+      console.error("Error deleting observation record:", deleteError);
+      toast.error("Erreur lors de la suppression de l'observation.");
+      return false;
+    }
+    toast.success("Observation supprimée.");
+    return true;
+  } catch (e: any) {
+    console.error("Unhandled exception during observation deletion:", e);
+    toast.error(`Erreur inattendue lors de la suppression de l'observation: ${e.message || e}`);
     return false;
   }
-  toast.success("Observation supprimée.");
-  return true;
 };
 
-// --- Image Upload to Supabase Storage ---
+export const getProjectFullData = async (projectId: string): Promise<Project | null> => {
+  const { data: projectData, error: projectError } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
 
-export const uploadImageToSupabase = async (file: File, projectId: string, levelId: string, spaceId: string): Promise<string | null> => {
-  const fileExtension = file.name.split(".").pop();
-  const fileName = `${uuidv4()}.${fileExtension}`;
-  const filePath = `${projectId}/${levelId}/${spaceId}/${fileName}`;
-
-  const { data, error } = await supabase.storage
-    .from("project-images") // Make sure this bucket exists in Supabase Storage
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (error) {
-    console.error("Error uploading image:", error);
-    toast.error("Erreur lors du chargement de l'image.");
+  if (projectError || !projectData) {
+    console.error("Error fetching project for full data:", projectError);
+    toast.error("Erreur lors du chargement complet du projet.");
     return null;
   }
 
-  // Get public URL
-  const { data: publicUrlData } = supabase.storage
-    .from("project-images")
-    .getPublicUrl(filePath);
+  const project: Project = { ...projectData, levels: [], buildingCharacteristics: projectData.building_characteristics || "" };
 
-  if (!publicUrlData || !publicUrlData.publicUrl) {
-    console.error("Error getting public URL for image.");
-    toast.error("Erreur lors de l'obtention de l'URL publique de l'image.");
-    return null;
+  const { data: levelsData, error: levelsError } = await supabase
+    .from("levels")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true });
+
+  if (levelsError) {
+    console.error("Error fetching levels for full data:", levelsError);
+    toast.error("Erreur lors du chargement des niveaux pour le projet.");
+    return project; // Return partial data if levels fail
   }
 
-  return publicUrlData.publicUrl;
-};
+  project.levels = await Promise.all(levelsData.map(async (levelData) => {
+    const level: Level = { ...levelData, spaces: [] };
 
-export const deleteImageFromSupabase = async (imageUrl: string): Promise<boolean> => {
-  // Extract the path from the public URL
-  const urlParts = imageUrl.split('/public/project-images/');
-  if (urlParts.length < 2) {
-    console.error("Invalid image URL for deletion:", imageUrl);
-    return false;
-  }
-  const filePath = urlParts[1];
+    const { data: spacesData, error: spacesError } = await supabase
+      .from("spaces")
+      .select("*")
+      .eq("level_id", level.id)
+      .order("created_at", { ascending: true });
 
-  const { error } = await supabase.storage
-    .from("project-images")
-    .remove([filePath]);
+    if (spacesError) {
+      console.error("Error fetching spaces for full data:", spacesError);
+      toast.error(`Erreur lors du chargement des espaces pour le niveau ${level.name}.`);
+      return level; // Return partial data if spaces fail
+    }
 
-  if (error) {
-    console.error("Error deleting image from storage:", error);
-    toast.error("Erreur lors de la suppression de l'image du stockage.");
-    return false;
-  }
-  return true;
+    level.spaces = await Promise.all(spacesData.map(async (spaceData) => {
+      const space: SpaceRoom = { ...spaceData, observations: {} };
+
+      const { data: observationsData, error: observationsError } = await supabase
+        .from("observations")
+        .select("*")
+        .eq("space_id", space.id)
+        .order("created_at", { ascending: true });
+
+      if (observationsError) {
+        console.error("Error fetching observations for full data:", observationsError);
+        toast.error(`Erreur lors du chargement des observations pour l'espace ${space.name}.`);
+        return space; // Return partial data if observations fail
+      }
+
+      // Group observations by location_in_space
+      observationsData.forEach(obs => {
+        if (!space.observations[obs.location_in_space]) {
+          space.observations[obs.location_in_space] = [];
+        }
+        space.observations[obs.location_in_space].push(obs);
+      });
+
+      return space;
+    }));
+
+    return level;
+  }));
+
+  return project;
 };

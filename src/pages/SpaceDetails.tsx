@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -9,19 +9,16 @@ import {
   getObservationsForSpace,
   addObservation,
   deleteObservation,
-  uploadImageToSupabase,
-  deleteImageFromSupabase,
 } from "@/lib/storage";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowLeft, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { PlusCircle, ArrowLeft, Trash2, Loader2 } from "lucide-react"; // Import Loader2 for loading spinner
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
@@ -38,9 +35,8 @@ const SpaceDetails = () => {
   const [newObservationLocation, setNewObservationLocation] = useState<string>("floor");
   const [showCustomLocationInput, setShowCustomLocationInput] = useState(false);
   const [customLocationName, setCustomLocationName] = useState("");
-  const [newObservationFiles, setNewObservationFiles] = useState<File[]>([]); // Store File objects
-  const [newObservationPhotoPreviews, setNewObservationPhotoPreviews] = useState<string[]>([]); // Store base64 for previews
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [newObservationPhotoBase64s, setNewObservationPhotoBase64s] = useState<string[]>([]);
+  const [isAddingObservation, setIsAddingObservation] = useState(false); // New loading state
 
   const fetchSpaceAndObservations = async () => {
     if (!projectId || !levelId || !spaceId) return;
@@ -88,72 +84,65 @@ const SpaceDetails = () => {
   }, [projectId, levelId, spaceId, navigate, location.pathname]);
 
   const handleAddObservation = async () => {
-    if (!project || !level || !space || !newObservationText.trim()) {
-      toast.error("Le texte de l'observation ne peut pas être vide.");
+    console.log("handleAddObservation called");
+    setIsAddingObservation(true); // Set loading state
+
+    if (!project || !level || !space) {
+      console.log("Validation failed: project, level, or space is null");
+      toast.error("Erreur interne: Projet, niveau ou espace non chargé.");
+      setIsAddingObservation(false); // Reset loading state
       return;
     }
-    if (isPhotoUploading) {
-      toast.error("Veuillez attendre la fin du chargement des photos.");
+
+    if (!newObservationText.trim()) {
+      console.log("Validation failed: newObservationText is empty");
+      toast.error("Le texte de l'observation ne peut pas être vide.");
+      setIsAddingObservation(false); // Reset loading state
       return;
     }
 
     let actualLocation = newObservationLocation;
     if (showCustomLocationInput) {
       if (!customLocationName.trim()) {
+        console.log("Validation failed: customLocationName is empty");
         toast.error("Le nom de la localisation personnalisée ne peut pas être vide.");
+        setIsAddingObservation(false); // Reset loading state
         return;
       }
       actualLocation = customLocationName.trim();
     }
 
-    setIsPhotoUploading(true);
-    const uploadedPhotoUrls: string[] = [];
-    for (const file of newObservationFiles) {
-      const url = await uploadImageToSupabase(file, project.id, level.id, space.id);
-      if (url) {
-        uploadedPhotoUrls.push(url);
-      } else {
-        toast.error(`Échec du chargement de l'image ${file.name}.`);
-        setIsPhotoUploading(false);
-        return;
-      }
-    }
-    setIsPhotoUploading(false);
-
-    const newObservationData: Omit<Observation, "id" | "created_at"> = {
+    console.log("Validation passed, preparing observation data.");
+    const newObservationData: Omit<Observation, "id" | "created_at" | "user_id"> = {
       text: newObservationText.trim(),
       location_in_space: actualLocation,
-      photos: uploadedPhotoUrls,
+      photos: newObservationPhotoBase64s, // Re-enabled photo upload
       space_id: space.id,
     };
 
+    console.log("Calling addObservation with data:", newObservationData);
     const addedObservation = await addObservation(newObservationData);
+    console.log("addObservation returned:", addedObservation);
     if (addedObservation) {
-      setObservationsByLocation(prev => ({
-        ...prev,
-        [actualLocation]: [...(prev[actualLocation] || []), addedObservation],
-      }));
+      console.log("Photos in addedObservation:", addedObservation.photos); // Add this log
+      toast.success("Observation ajoutée avec succès !");
       setNewObservationText("");
       setNewObservationLocation("floor");
-      setNewObservationFiles([]);
-      setNewObservationPhotoPreviews([]);
+      setNewObservationPhotoBase64s([]);
       setShowCustomLocationInput(false);
       setCustomLocationName("");
       setIsObservationFormOpen(false);
+      await fetchSpaceAndObservations(); // Force re-fetch all observations
+    } else {
+      console.error("Failed to add observation: addObservation returned null.");
+      toast.error("Échec de l'ajout de l'observation. Veuillez vérifier la console pour plus de détails.");
     }
+    setIsAddingObservation(false); // Reset loading state
   };
 
   const handleDeleteObservation = async (locationKey: string, observationId: string) => {
     if (!project || !level || !space) return;
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation et ses photos ?")) {
-      const observationToDelete = observationsByLocation[locationKey]?.find(obs => obs.id === observationId);
-      if (observationToDelete) {
-        // Delete photos from Supabase Storage first
-        for (const photoUrl of observationToDelete.photos) {
-          await deleteImageFromSupabase(photoUrl);
-        }
-      }
-
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette observation ?")) {
       const success = await deleteObservation(observationId);
       if (success) {
         setObservationsByLocation(prev => ({
@@ -168,8 +157,6 @@ const SpaceDetails = () => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const newFilesArray = Array.from(files);
-      setNewObservationFiles((prev) => [...prev, ...newFilesArray]);
-
       const photoPromises: Promise<string>[] = newFilesArray.map((file) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
@@ -182,7 +169,7 @@ const SpaceDetails = () => {
 
       Promise.all(photoPromises)
         .then((base64Strings) => {
-          setNewObservationPhotoPreviews((prev) => [...prev, ...base64Strings]);
+          setNewObservationPhotoBase64s((prev) => [...prev, ...base64Strings]);
           toast.success(`${base64Strings.length} photo(s) sélectionnée(s).`);
         })
         .catch((error) => {
@@ -200,13 +187,12 @@ const SpaceDetails = () => {
     );
   }
 
-  // Helper to get display name for location
   const getLocationDisplayName = (key: string) => {
     switch (key) {
       case "floor": return "Observations du Sol";
       case "wall": return "Observations du Mur";
       case "ceiling": return "Observations du Plafond";
-      default: return `Observations de ${key}`; // For custom locations
+      default: return `Observations de ${key}`;
     }
   };
 
@@ -231,8 +217,7 @@ const SpaceDetails = () => {
               <Button onClick={() => {
                 setNewObservationText("");
                 setNewObservationLocation("floor");
-                setNewObservationFiles([]);
-                setNewObservationPhotoPreviews([]);
+                setNewObservationPhotoBase64s([]);
                 setShowCustomLocationInput(false);
                 setCustomLocationName("");
                 setIsObservationFormOpen(true);
@@ -243,6 +228,9 @@ const SpaceDetails = () => {
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Ajouter une nouvelle observation</DialogTitle>
+                <DialogDescription>
+                  Remplissez les détails de l'observation et ajoutez des photos.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -308,21 +296,18 @@ const SpaceDetails = () => {
                     capture="environment"
                     onChange={handlePhotoUpload}
                     className="col-span-3"
-                    disabled={isPhotoUploading}
                   />
                 </div>
-                {isPhotoUploading && (
-                  <p className="col-span-4 text-center text-sm text-blue-500">Chargement des photos...</p>
-                )}
                 <div className="col-span-4 flex flex-wrap gap-2 justify-end">
-                  {newObservationPhotoPreviews.map((photo, index) => (
+                  {newObservationPhotoBase64s.map((photo, index) => (
                     <img key={index} src={photo} alt={`Observation ${index + 1}`} className="w-20 h-20 object-cover rounded-md" />
                   ))}
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} disabled={isPhotoUploading}>Annuler</Button>
-                <Button onClick={handleAddObservation} disabled={isPhotoUploading || !newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
+                <Button variant="outline" onClick={() => setIsObservationFormOpen(false)} disabled={isAddingObservation}>Annuler</Button>
+                <Button onClick={handleAddObservation} disabled={isAddingObservation || !newObservationText.trim() || (showCustomLocationInput && !customLocationName.trim())}>
+                  {isAddingObservation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Ajouter l'observation
                 </Button>
               </div>
