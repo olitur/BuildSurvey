@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 import { createClient } from '@supabase/supabase-js';
 

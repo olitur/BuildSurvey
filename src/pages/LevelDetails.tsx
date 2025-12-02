@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -45,7 +45,7 @@ const LevelDetails = () => {
     }
     setLevel(foundLevel);
 
-    const fetchedSpaces = await getSpacesForLevel(levelId);
+    const fetchedSpaces = await getSpacesForLevel(foundLevel.id);
     setSpaces(fetchedSpaces);
   };
 

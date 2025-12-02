@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";

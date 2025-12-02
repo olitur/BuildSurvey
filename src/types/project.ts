@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 export interface Observation {
   id: string;

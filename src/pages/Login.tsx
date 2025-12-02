@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 import React from "react";
 import { Auth } from "@supabase/auth-ui-react";

@@ -1,4 +1,4 @@
-"use client";
+// Removed 'use client';
 
 import { supabase } from "@/lib/supabaseClient";
 import { Project, Level, SpaceRoom, Observation } from "@/types/project";
